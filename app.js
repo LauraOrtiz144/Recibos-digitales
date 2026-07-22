@@ -322,9 +322,11 @@ async function compartirPDF() {
         },
 
         html2canvas:{
-            scale:2,
+            scale:4,
             useCORS:true,
             backgroundColor:"#ffffff",
+            windowWidth:1200,
+            windowHeight:1700,
             scrollX:0,
             scrollY:0
         },
