@@ -521,10 +521,55 @@ button:hover{
 .pdf-export #facturaPDF{
 
     width:210mm !important;
+    min-width:210mm !important;
+    max-width:210mm !important;
+
+    padding:15mm !important;
+
+    margin:0 auto !important;
 
     border-radius:0 !important;
-
     box-shadow:none !important;
+
+    box-sizing:border-box;
+
+}
+
+.pdf-export .empresa{
+
+    width:60% !important;
+
+}
+
+.pdf-export .datos-remision{
+
+    width:35% !important;
+
+}
+
+.pdf-export .empresa p{
+
+    white-space:nowrap !important;
+
+}
+
+.pdf-export .tablaCliente{
+
+    table-layout:fixed !important;
+
+}
+
+.pdf-export .tablaCliente td{
+
+    display:table-cell !important;
+
+    width:auto !important;
+
+}
+
+.pdf-export .tablaCliente input{
+
+    width:100% !important;
 
 }
 
