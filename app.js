@@ -216,10 +216,6 @@ function actualizarFactura() {
 
 }
 
-function enviarWhatsApp() {
-  const mensaje = `Hola, te envío tu remisión. Total: $${total}`;
-  window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`);
-}
 
 function generarPDF() {
 
@@ -289,53 +285,108 @@ function generarPDF() {
 }
 
 async function compartirPDF() {
-  const elemento = document.getElementById("facturaPDF");
 
-  const cliente = document.getElementById("clienteNombre").value || "Cliente";
-  const numero = numeroRemision;
-
-  const nombreArchivo = `Remision_${cliente}_${numero}.pdf`;
-
- const opt = {
-    margin: 5,
-
-    filename: nombreArchivo,
-
-    image:{
-        type:'jpeg',
-        quality:1
-    },
-
-    html2canvas:{
-        scale:4,
-        useCORS:true,
-        letterRendering:true,
-        scrollX:0,
-        scrollY:0
-    },
-
-    jsPDF:{
-        unit:'mm',
-        format:'a4',
-        orientation:'portrait'
+    if (factura.length === 0) {
+        alert("No hay productos en la remisión.");
+        return;
     }
-    
-};
 
-  const pdfBlob = await html2pdf().set(opt).from(elemento).outputPdf('blob');
-  const file = new File([pdfBlob], nombreArchivo, { type: 'application/pdf' });
+    const elemento = document.getElementById("facturaPDF");
 
-  const esMovil = /Android|iPhone|iPad/i.test(navigator.userAgent);
+    const cliente =
+        document.getElementById("clienteNombre").value || "Cliente";
 
-  if (esMovil && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-    await navigator.share({
-      title: 'Remisión',
-      text: `Remisión N° ${numero} - ${cliente}`,
-      files: [file]
-    });
-  } else {
-    alert("Tu dispositivo no permite compartir directo. Usa el PDF descargado.");
-  }
+    const numero = numeroRemision;
+
+    const nombreArchivo =
+        `Remision_${cliente}_${numero}.pdf`;
+
+    const opt = {
+
+        margin:0,
+
+        filename:nombreArchivo,
+
+        image:{
+            type:'jpeg',
+            quality:1
+        },
+
+        html2canvas:{
+            scale:2,
+            useCORS:true,
+            backgroundColor:"#ffffff",
+            scrollX:0,
+            scrollY:0
+        },
+
+        jsPDF:{
+            unit:'mm',
+            format:'a4',
+            orientation:'portrait'
+        }
+
+    };
+
+    const pdfBlob = await html2pdf()
+        .set(opt)
+        .from(elemento)
+        .outputPdf("blob");
+
+    const file = new File(
+        [pdfBlob],
+        nombreArchivo,
+        { type:"application/pdf" }
+    );
+
+    try {
+
+        if (navigator.share &&
+            navigator.canShare &&
+            navigator.canShare({ files:[file] })) {
+
+            await navigator.share({
+
+                title:"Remisión",
+
+                text:`Remisión No. ${numero}`,
+
+                files:[file]
+
+            });
+
+        } else {
+
+            alert("Este dispositivo no permite compartir archivos.");
+
+            return;
+
+        }
+
+        // Se guarda la venta
+        guardarVenta();
+
+        // Limpia la firma
+        limpiarFirma();
+
+        // Limpia cliente
+        document.getElementById("clienteNombre").value = "";
+        document.getElementById("clienteTelefono").value = "";
+        document.getElementById("clienteDireccion").value = "";
+
+        // Limpia buscador
+        document.getElementById("buscarProducto").value = "";
+        document.getElementById("resultados").innerHTML = "";
+
+        // Actualiza el siguiente número
+        actualizarNumeroRemision();
+
+    } catch(e){
+
+        console.log("Compartir cancelado.");
+
+    }
+
 }
 
 function cerrarSesion() {
