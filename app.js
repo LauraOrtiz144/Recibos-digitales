@@ -302,6 +302,17 @@ async function compartirPDF() {
 
     const elemento = document.getElementById("facturaPDF");
 
+    document.getElementById("pdfCliente").textContent =
+        document.getElementById("clienteNombre").value;
+
+    document.getElementById("pdfTelefono").textContent =
+        document.getElementById("clienteTelefono").value;
+
+    document.getElementById("pdfDireccion").textContent =
+        document.getElementById("clienteDireccion").value;
+
+    document.body.classList.add("pdf-export");
+
     const cliente =
         document.getElementById("clienteNombre").value || "Cliente";
 
@@ -325,10 +336,10 @@ async function compartirPDF() {
             scale:4,
             useCORS:true,
             backgroundColor:"#ffffff",
-            windowWidth:1200,
-            windowHeight:1700,
             scrollX:0,
-            scrollY:0
+            scrollY:0,
+           windowWidth:1200,
+            windowHeight:1700
         },
 
         jsPDF:{
@@ -374,6 +385,8 @@ async function compartirPDF() {
 
         }
 
+        document.body.classList.remove("pdf-export");
+
         // Se guarda la venta
         guardarVenta();
 
@@ -393,6 +406,7 @@ async function compartirPDF() {
         actualizarNumeroRemision();
 
     } catch(e){
+        document.body.classList.remove("pdf-export");
 
         console.log("Compartir cancelado.");
 
