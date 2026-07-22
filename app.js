@@ -228,6 +228,15 @@ function generarPDF() {
 
     const nombreArchivo =
         `Remision_${cliente}_${numero}.pdf`;
+    document.getElementById("pdfCliente").textContent =
+        document.getElementById("clienteNombre").value;
+
+    document.getElementById("pdfTelefono").textContent =
+        document.getElementById("clienteTelefono").value;
+
+    document.getElementById("pdfDireccion").textContent =
+        document.getElementById("clienteDireccion").value;
+
 
     document.body.classList.add("pdf-export");
 
