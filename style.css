@@ -81,10 +81,10 @@ button:hover{
 .factura-pro{
 
     background:#fff;
-    width:210mm;
-    min-height:297mm;
+    width:100%;
+    min-width:210mm;
     margin:auto;
-    padding:20mm;
+    padding:10mm;
     border-radius:6px;
     box-shadow:0 0 15px rgba(0,0,0,.20);
     box-sizing:border-box;
@@ -512,19 +512,12 @@ button:hover{
 
 .pdf-export #facturaPDF{
 
-    width:210mm !important;
-    min-width:210mm !important;
-    max-width:210mm !important;
-
-    min-height:auto !important;
-    height:auto !important;
-
-    padding:15mm !important;
+    width:190mm !important;
+    max-width:190mm !important;
 
     margin:0 auto !important;
 
-    border-radius:0 !important;
-    box-shadow:none !important;
+    padding:0 !important;
 
     box-sizing:border-box !important;
 
@@ -703,12 +696,35 @@ BUSCADOR
 }
 /* FORZAR DISEÑO DE ESCRITORIO AL EXPORTAR */
 
-.pdf-export .encabezado-remision{
-    display:flex !important;
-    flex-direction:row !important;
-    justify-content:space-between !important;
-    align-items:flex-start !important;
+
+.pdf-export .empresa{
+    width:58% !important;
 }
+
+.pdf-export .datos-remision{
+    width:38% !important;
+}
+
+.pdf-export .tablaRemision,
+.pdf-export .tablaCliente{
+    width:100% !important;
+}
+
+.pdf-export .total-pro{
+    width:100% !important;
+    box-sizing:border-box !important;
+}
+
+.pdf-export .firmas{
+    display:flex !important;
+    justify-content:space-between !important;
+    gap:20px !important;
+}
+
+.pdf-export .firmaBox{
+    width:48% !important;
+}
+
 
 
 
