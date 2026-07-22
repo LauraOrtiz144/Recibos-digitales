@@ -721,5 +721,44 @@ BUSCADOR
 .pdf-export .tablaCliente input{
     display:none;
 }
+/* FORZAR DISEÑO DE ESCRITORIO AL EXPORTAR */
 
+.pdf-export .factura-pro{
+    width:210mm !important;
+    padding:20mm !important;
+}
+
+.pdf-export .encabezado-remision{
+    display:flex !important;
+    flex-direction:row !important;
+    justify-content:space-between !important;
+    align-items:flex-start !important;
+}
+
+.pdf-export .empresa{
+    width:60% !important;
+}
+
+.pdf-export .datos-remision{
+    width:220px !important;
+    margin-top:0 !important;
+}
+
+.pdf-export .tablaCliente td{
+    display:table-cell !important;
+    width:auto !important;
+}
+
+.pdf-export .tablaCliente tr{
+    display:table-row !important;
+}
+
+.pdf-export .firmas{
+    display:flex !important;
+    flex-direction:row !important;
+}
+
+.pdf-export .firmaBox{
+    width:45% !important;
+}
 
