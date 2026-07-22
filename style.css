@@ -555,13 +555,35 @@ button:hover{
 
 .pdf-export .tablaCliente{
 
+    display:table !important;
+    width:100% !important;
+    border-collapse:collapse !important;
     table-layout:fixed !important;
+
+}
+
+.pdf-export .tablaCliente tr{
+
+    display:table-row !important;
 
 }
 
 .pdf-export .tablaCliente td{
 
     display:table-cell !important;
+    vertical-align:middle !important;
+    padding:8px !important;
+
+}
+
+.pdf-export .tablaCliente td:first-child{
+
+    width:120px !important;
+    font-weight:bold;
+
+}
+
+.pdf-export .tablaCliente td:last-child{
 
     width:auto !important;
 
@@ -570,9 +592,13 @@ button:hover{
 .pdf-export .tablaCliente input{
 
     width:100% !important;
+    margin:0 !important;
+    padding:0 !important;
+    border:none !important;
+    background:transparent !important;
+    box-sizing:border-box !important;
 
 }
-
 .pdf-export .encabezado-remision{
 
     display:flex !important;
@@ -583,11 +609,6 @@ button:hover{
 
 }
 
-.pdf-export .tablaCliente td{
-
-    display:table-cell !important;
-
-}
 
 .pdf-export .tablaRemision{
 
@@ -676,5 +697,28 @@ BUSCADOR
 
 .btnAgregar:hover{
     background:#245782;
+}
+
+
+
+/*=================================
+   TEXTO PARA EXPORTAR PDF
+==================================*/
+
+.textoPDF{
+    display:none;
+}
+
+.pdf-export .textoPDF{
+    display:block;
+    width:100%;
+    min-height:24px;
+    padding:4px 0;
+    font-size:16px;
+    color:#000;
+}
+
+.pdf-export .tablaCliente input{
+    display:none;
 }
 
