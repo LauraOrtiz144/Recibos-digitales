@@ -1,0 +1,635 @@
+/*==================================================
+                ESTILOS GENERALES
+==================================================*/
+
+body{
+    margin:0;
+    font-family:'Poppins',sans-serif;
+    background:linear-gradient(135deg,#caf7a0,#3e3333);
+}
+
+.container{
+    padding:20px;
+}
+
+.card{
+    background:#fff;
+    border-radius:20px;
+    padding:20px;
+}
+
+input,
+button{
+
+    width:100%;
+    padding:10px;
+    margin-top:10px;
+    border-radius:8px;
+
+}
+
+button{
+
+    background:#2f6fa5;
+    color:#fff;
+    border:none;
+    cursor:pointer;
+
+}
+
+button:hover{
+
+    opacity:.92;
+
+}
+
+.catalogo-grid{
+
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:10px;
+
+}
+
+.producto-card{
+
+    background:#fff;
+    padding:10px;
+    border-radius:10px;
+    text-align:center;
+
+}
+
+.producto-card h3{
+
+    font-size:16px;
+
+}
+
+.precio{
+
+    font-size:18px;
+    font-weight:bold;
+    color:#2f6fa5;
+
+}
+
+/*==================================================
+                REMISIÓN
+==================================================*/
+
+.factura-pro{
+
+    background:#fff;
+    width:210mm;
+    min-height:297mm;
+    margin:auto;
+    padding:20mm;
+    border-radius:6px;
+    box-shadow:0 0 15px rgba(0,0,0,.20);
+    box-sizing:border-box;
+
+}
+
+#facturaPDF{
+    height:auto !important;
+    min-height:unset !important;
+    padding-bottom:0;
+    background:#fff;
+}
+
+.ocultarPDF{
+
+    display:none !important;
+
+}
+
+/*==================================================
+                TABLAS ANTIGUAS
+==================================================*/
+
+.tabla-pro{
+
+    width:100%;
+    margin-top:10px;
+    page-break-inside:auto;
+
+}
+
+.tabla-pro th{
+
+    background:#2f6fa5;
+    color:#fff;
+
+}
+
+.tabla-pro tr{
+
+    page-break-inside:avoid;
+    page-break-after:auto;
+
+}
+
+/*==================================================
+                CLIENTE
+==================================================*/
+
+.cliente{
+
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+
+}
+
+.cliente input{
+
+    flex:1;
+
+}
+
+/*==================================================
+                FIRMA
+==================================================*/
+
+#firmaCanvas{
+
+    width:100%;
+    height:120px;
+    border:1px solid #000;
+    display:block;
+
+    page-break-inside:avoid;
+    break-inside:avoid;
+
+}
+
+/*==================================================
+                PDF
+==================================================*/
+
+.pdf-mode body{
+
+    background:#fff !important;
+
+}
+
+.pdf-mode .container{
+
+    padding:0 !important;
+
+}
+
+.pdf-mode #facturaPDF{
+
+    margin:0 auto !important;
+    box-shadow:none !important;
+
+}
+
+/*==================================================
+                NUEVA REMISIÓN
+==================================================*/
+
+.encabezado-remision{
+
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+
+    border-bottom:2px solid #000;
+
+    padding-bottom:15px;
+    margin-bottom:20px;
+
+}
+
+/*================ EMPRESA ================*/
+
+.empresa h2{
+
+    margin:0;
+    font-size:30px;
+    color:#000;
+
+}
+
+.empresa p{
+
+    margin:2px 0;
+    font-size:15px;
+    color:#444;
+
+}
+
+/*================ DATOS REMISIÓN ================*/
+
+.datos-remision{
+
+    width:220px;
+
+}
+
+.datos-remision h3{
+
+    margin:0;
+    padding:8px;
+
+    background:#2f6fa5;
+    color:#fff;
+
+    text-align:center;
+
+}
+
+.tabla-datos{
+
+    width:100%;
+    border-collapse:collapse;
+
+}
+
+.tabla-datos td{
+
+    border:1px solid #000;
+    padding:8px;
+    font-size:15px;
+
+}
+
+/*================ CLIENTE ================*/
+
+.tablaCliente{
+
+    width:100%;
+    border-collapse:collapse;
+    margin-bottom:20px;
+
+}
+
+.tablaCliente td{
+
+    border:1px solid #999;
+    padding:8px;
+
+}
+
+.tablaCliente input{
+
+    width:100%;
+    margin:0;
+
+    border:none;
+    outline:none;
+    background:transparent;
+
+    font-size:16px;
+
+}
+
+/*================ TABLA PRODUCTOS ================*/
+
+.tablaRemision{
+
+    width:100%;
+    margin-top:15px;
+
+    border-collapse:collapse;
+
+}
+
+.tablaRemision th{
+
+    background:#2f6fa5;
+    color:#fff;
+
+    padding:10px;
+
+    font-size:15px;
+
+}
+
+.tablaRemision td{
+
+    border:1px solid #bbb;
+
+    padding:10px;
+
+    font-size:15px;
+
+}
+
+/*================ TOTAL ================*/
+
+.total-pro{
+
+    margin-top:20px;
+
+    padding:15px;
+
+    background:#f3f3f3;
+
+    border:2px solid #000;
+
+    font-size:30px;
+    font-weight:bold;
+
+    text-align:right;
+
+}
+
+/*================ FIRMAS ================*/
+
+.firmas{
+    display:flex;
+    justify-content:space-between;
+    gap:40px;
+    align-items:flex-end;
+    margin-top:35px;   /* prueba con 35, 40 o 50 px */
+}
+
+.firmaBox{
+
+    width:45%;
+
+    display:flex;
+
+    flex-direction:column;
+
+}
+
+.firmaVendedor{
+
+    height:120px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    color:#777;
+
+    font-style:italic;
+
+}
+
+.firmaBox hr{
+
+    margin:0;
+
+    margin-top:10px;
+
+    border:1px solid #000;
+
+}
+
+.firmaBox p{
+
+    margin-top:5px;
+
+    font-size:15px;
+
+    font-weight:600;
+
+}
+/*==================================================
+                RESPONSIVE CELULAR
+==================================================*/
+
+@media (max-width:700px){
+
+    .container{
+        padding:10px;
+    }
+
+    .factura-pro{
+        width:100%;
+        min-height:auto;
+        padding:15px;
+        box-sizing:border-box;
+    }
+
+    .encabezado-remision{
+        flex-direction:column;
+    }
+
+    .datos-remision{
+        width:100%;
+        margin-top:20px;
+    }
+
+    .empresa h2{
+        font-size:24px;
+    }
+
+    .tablaCliente td{
+        display:block;
+        width:100%;
+    }
+
+    .tablaCliente tr{
+        display:block;
+        margin-bottom:10px;
+    }
+
+    .tablaRemision{
+        font-size:13px;
+    }
+
+    .tablaRemision th,
+    .tablaRemision td{
+        padding:8px;
+        font-size:13px;
+    }
+
+    .firmas{
+        flex-direction:column;
+        gap:30px;
+    }
+
+    .firmaBox{
+        width:100%;
+    }
+
+    #firmaCanvas{
+        width:100%;
+        height:80px;
+    }
+
+}
+
+/*==================================================
+                IMPRESIÓN
+==================================================*/
+
+@media print{
+
+    body{
+        background:white;
+    }
+
+    button{
+        display:none;
+    }
+
+    input{
+        border:none;
+        outline:none;
+        background:transparent;
+    }
+
+    .factura-pro{
+
+        width:100%;
+        padding:0;
+        border:none;
+        box-shadow:none;
+
+    }
+
+    #firmaCanvas{
+
+        width:100%;
+        height:120px;
+
+    }
+
+    #facturaPDF{
+
+        width:210mm;
+        min-height:297mm;
+
+        margin:auto;
+
+        padding:12mm;
+
+        background:white;
+
+        box-sizing:border-box;
+
+        box-shadow:none;
+
+    }
+
+}
+
+/*==================================================
+            EXPORTAR PDF (html2pdf)
+==================================================*/
+
+.pdf-export #facturaPDF{
+
+    width:210mm !important;
+
+    border-radius:0 !important;
+
+    box-shadow:none !important;
+
+}
+
+.pdf-export .encabezado-remision{
+
+    display:flex !important;
+
+    flex-direction:row !important;
+
+    justify-content:space-between !important;
+
+}
+
+.pdf-export .tablaCliente td{
+
+    display:table-cell !important;
+
+}
+
+.pdf-export .tablaRemision{
+
+    width:100% !important;
+
+    font-size:14px !important;
+
+}
+
+.pdf-export .tablaRemision th,
+.pdf-export .tablaRemision td{
+
+    padding:8px !important;
+
+}
+
+/*==========================
+BUSCADOR
+===========================*/
+
+#buscarProducto{
+    width:100%;
+    padding:14px;
+    font-size:18px;
+    border:2px solid #2f6fa5;
+    border-radius:12px;
+    outline:none;
+    box-sizing:border-box;
+}
+
+#buscarProducto:focus{
+    border-color:#1f4f78;
+}
+
+#resultados{
+    margin-top:10px;
+}
+
+.resultadoProducto{
+
+    background:white;
+
+    border-radius:12px;
+
+    padding:15px;
+
+    margin-bottom:10px;
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    box-shadow:0 2px 8px rgba(0,0,0,.15);
+
+}
+
+.resultadoInfo h4{
+    margin:0;
+    font-size:18px;
+}
+
+.resultadoInfo p{
+    margin:5px 0 0;
+    color:#2f6fa5;
+    font-weight:bold;
+}
+
+.btnAgregar{
+
+    width:auto;
+
+    padding:10px 20px;
+
+    border-radius:10px;
+
+    background:#2f6fa5;
+
+    color:white;
+
+    cursor:pointer;
+
+    font-size:15px;
+}
+
+.btnAgregar:hover{
+    background:#245782;
+}
+

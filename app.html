@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Remisiones</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ACTIVACION -->
+  <div id="activacionVista" class="vista">
+    <h2>Activar sistema</h2>
+    <input type="text" id="codigo" placeholder="Código de activación">
+    <button onclick="activar()">Activar</button>
+  </div>
+
+  <!-- LOGIN -->
+  <div id="loginVista" class="vista" style="display:none;">
+    <h2>Iniciar sesión</h2>
+    <input type="text" id="usuario" placeholder="Usuario">
+    <input type="password" id="pin" placeholder="PIN">
+    <button onclick="login()">Entrar</button>
+  </div>
+
+  <!-- CATALOGO -->
+  <div id="catalogoVista" class="vista" style="display:none;">
+    
+    <h2 id="empresaNombre">Mi Empresa</h2>
+
+    <button class="btn-secundario" onclick="irAFacturacion()">Crear remisión</button>
+    <button onclick="verHistorial()">Ver historial</button>
+
+    <h3>Agregar Producto</h3>
+    <input type="text" id="nombreProducto" placeholder="Nombre">
+    <input type="number" id="precioProducto" placeholder="Precio">
+    <button id="guardarProducto">Guardar</button>
+
+    <h3>Catálogo</h3>
+    <div id="catalogo" class="catalogo-grid"></div>
+
+    <button onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+
+  <!-- REMISION -->
+  <div id="facturacionVista" class="vista" style="display:none;">
+
+    <!-- 🔍 BUSCADOR FUERA DEL PDF -->
+    <input type="text" id="buscarProducto" placeholder="Buscar producto">
+    <div id="resultados"></div>
+
+    <!-- 📄 PDF LIMPIO -->
+    <div class="factura-pro" id="facturaPDF">
+
+     <div class="encabezado-remision">
+
+    <div class="empresa">
+        <h2>SOLMET</h2>
+        <p>NIT: 900.000.000-0</p>
+        <p>Tel: 302 423 8890</p>
+        <p>Bogotá D.C.</p>
+    </div>
+
+    <div class="datos-remision">
+
+        <h3>REMISIÓN</h3>
+
+        <table class="tabla-datos">
+            <tr>
+                <td><b>No.</b></td>
+                <td><span id="numeroRemision">001</span></td>
+            </tr>
+
+            <tr>
+                <td><b>Fecha</b></td>
+                <td><span id="fechaActual"></span></td>
+            </tr>
+
+        </table>
+
+    </div>
+
+</div>
+        
+      <div class="datosCliente">
+
+    <table class="tablaCliente">
+
+        <tr>
+            <td width="130"><strong>Cliente</strong></td>
+
+            <td>
+                <input id="clienteNombre"
+                       placeholder="Nombre del cliente">
+            </td>
+
+        </tr>
+
+        <tr>
+
+            <td><strong>Teléfono</strong></td>
+
+            <td>
+                <input id="clienteTelefono"
+                       placeholder="Teléfono">
+            </td>
+
+        </tr>
+
+        <tr>
+
+            <td><strong>Dirección</strong></td>
+
+            <td>
+                <input id="clienteDireccion"
+                       placeholder="Dirección">
+            </td>
+
+        </tr>
+
+    </table>
+
+</div>
+
+      <table class="tablaRemision">
+        <thead>
+          <tr>
+            <th>Descripción</th>
+            <th>Cant</th>
+            <th>Precio</th>
+            <th>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody id="tablaFactura"></tbody>
+      </table>
+
+      <div class="total-pro">
+        TOTAL: $<span id="total">0</span>
+      </div>
+
+      <!-- 🔥 FIRMA DENTRO DEL PDF -->
+      <div class="firmas">
+
+    <div class="firmaBox">
+
+        <div class="firmaVendedor">
+            Firma del vendedor
+        </div>
+
+        <hr>
+
+        <p>Entregó</p>
+
+    </div>
+
+    <div class="firmaBox">
+
+       <canvas id="firmaCanvas"
+        width="350"
+        height="120">
+      </canvas>
+
+        <hr>
+
+        <p>Recibió</p>
+
+    </div>
+
+</div>
+
+</div>
+
+    </div>
+     
+    <div id="botonesAccion">
+      <button onclick="generarPDF()">PDF</button>
+      <button onclick="enviarWhatsApp()">WhatsApp</button>
+      <button onclick="mostrarVista('catalogoVista')">Volver</button>
+      <button onclick="limpiarFirma()">Limpiar firma</button>
+    </div>
+
+  </div>
+  <!-- HISTORIAL -->
+  <div id="historialVista" class="vista" style="display:none;">
+
+   <h2>Historial de ventas</h2>
+
+   <div id="listaHistorial"></div>
+
+   <h3>Total del día: $<span id="totalDia">0</span></h3>
+
+   <button onclick="descargarReporteDia()">Descargar reporte PDF</button>
+   <button onclick="mostrarVista('catalogoVista')">Volver</button>
+
+  </div> 
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script> 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<script src="js/app.js"></script>
+</body>
+</html> 
