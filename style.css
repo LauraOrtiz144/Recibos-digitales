@@ -92,9 +92,7 @@ button:hover{
 }
 
 #facturaPDF{
-    height:auto !important;
-    min-height:unset !important;
-    padding-bottom:0;
+
     background:#fff;
 }
 
@@ -448,6 +446,16 @@ button:hover{
         gap:30px;
     }
 
+    .pdf-export .firmas{
+    page-break-inside:avoid !important;
+    break-inside:avoid !important;
+   }
+
+   .pdf-export .total-pro{
+    page-break-inside:avoid !important;
+    break-inside:avoid !important;
+    }
+
     .firmaBox{
         width:100%;
     }
@@ -495,22 +503,6 @@ button:hover{
 
     }
 
-    #facturaPDF{
-
-        width:210mm;
-        min-height:297mm;
-
-        margin:auto;
-
-        padding:12mm;
-
-        background:white;
-
-        box-sizing:border-box;
-
-        box-shadow:none;
-
-    }
 
 }
 
@@ -524,6 +516,9 @@ button:hover{
     min-width:210mm !important;
     max-width:210mm !important;
 
+    min-height:auto !important;
+    height:auto !important;
+
     padding:15mm !important;
 
     margin:0 auto !important;
@@ -531,27 +526,12 @@ button:hover{
     border-radius:0 !important;
     box-shadow:none !important;
 
-    box-sizing:border-box;
+    box-sizing:border-box !important;
+
+    overflow:hidden !important;
 
 }
 
-.pdf-export .empresa{
-
-    width:60% !important;
-
-}
-
-.pdf-export .datos-remision{
-
-    width:35% !important;
-
-}
-
-.pdf-export .empresa p{
-
-    white-space:nowrap !important;
-
-}
 
 .pdf-export .tablaCliente{
 
@@ -723,11 +703,6 @@ BUSCADOR
 }
 /* FORZAR DISEÑO DE ESCRITORIO AL EXPORTAR */
 
-.pdf-export .factura-pro{
-    width:210mm !important;
-    padding:20mm !important;
-}
-
 .pdf-export .encabezado-remision{
     display:flex !important;
     flex-direction:row !important;
@@ -735,31 +710,5 @@ BUSCADOR
     align-items:flex-start !important;
 }
 
-.pdf-export .empresa{
-    width:60% !important;
-}
-
-.pdf-export .datos-remision{
-    width:220px !important;
-    margin-top:0 !important;
-}
-
-.pdf-export .tablaCliente td{
-    display:table-cell !important;
-    width:auto !important;
-}
-
-.pdf-export .tablaCliente tr{
-    display:table-row !important;
-}
-
-.pdf-export .firmas{
-    display:flex !important;
-    flex-direction:row !important;
-}
-
-.pdf-export .firmaBox{
-    width:45% !important;
-}
 
 
