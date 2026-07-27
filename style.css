@@ -82,7 +82,6 @@ button:hover{
 
     background:#fff;
     width:100%;
-    min-width:210mm;
     margin:auto;
     padding:10mm;
     border-radius:6px;
@@ -512,16 +511,14 @@ button:hover{
 
 .pdf-export #facturaPDF{
 
-    width:190mm !important;
-    max-width:190mm !important;
+    width:210mm !important;
+    max-width:210mm !important;
+
+    padding:10mm !important;
 
     margin:0 auto !important;
 
-    padding:0 !important;
-
     box-sizing:border-box !important;
-
-    overflow:hidden !important;
 
 }
 
@@ -724,9 +721,6 @@ BUSCADOR
 .pdf-export .firmaBox{
     width:48% !important;
 }
-
-
-
 
 
 
