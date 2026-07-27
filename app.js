@@ -105,15 +105,15 @@ function mostrarCatalogo() {
   });
 }
 
-function irAFacturacion() {
+  function irAFacturacion() {
 
-    mostrarVista("facturacionVista");
+      mostrarVista("facturacionVista");
 
-    actualizarNumeroRemision();
+      actualizarNumeroRemision();
 
-    document.getElementById("fechaActual").innerText =
-        new Date().toLocaleDateString("es-CO");
-}
+      document.getElementById("fechaActual").innerText =
+          new Date().toLocaleDateString("es-CO");
+  }
 document.getElementById("buscarProducto").addEventListener("input", function () {
 
     const texto = this.value.toLowerCase().trim();
@@ -167,27 +167,7 @@ document.getElementById("buscarProducto").addEventListener("input", function () 
     });
 });
 
-function agregarProductoFactura(p, cantidad) {
-
-    cantidad = Number(cantidad);
-
-    if (cantidad <= 0 || isNaN(cantidad)) {
-        alert("Ingrese una cantidad válida.");
-        return;
-    }
-
-    const subtotal = cantidad * p.precio;
-
-    factura.push({
-        nombre: p.nombre,
-        precio: p.precio,
-        cantidad,
-        subtotal
-    });
-
-    actualizarFactura();
-}
-
+ 
 function actualizarFactura() {
 
     const tabla = document.getElementById("tablaFactura");
@@ -218,200 +198,215 @@ function actualizarFactura() {
 
 
 function generarPDF() {
-
-    const elemento = document.getElementById("facturaPDF");
-
-    const cliente =
-        document.getElementById("clienteNombre").value || "Cliente";
-
+    const cliente = document.getElementById("clienteNombre").value || "Cliente";
+    const telefono = document.getElementById("clienteTelefono").value || "";
+    const direccion = document.getElementById("clienteDireccion").value || "";
     const numero = numeroRemision;
+    const nombreArchivo = `Remision_${cliente}_${numero}.pdf`;
 
-    const nombreArchivo =
-        `Remision_${cliente}_${numero}.pdf`;
-    document.getElementById("pdfCliente").textContent =
-        document.getElementById("clienteNombre").value;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
-    document.getElementById("pdfTelefono").textContent =
-        document.getElementById("clienteTelefono").value;
+    // --- ENCABEZADO ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.text("SOLMET", 14, 20);
 
-    document.getElementById("pdfDireccion").textContent =
-        document.getElementById("clienteDireccion").value;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("NIT: 900.000.000-0", 14, 25);
+    doc.text("Tel: 302 423 8890", 14, 30);
+    doc.text("Bogotá D.C.", 14, 35);
 
+    // Cuadro superior derecho (No. y Fecha)
+    doc.rect(145, 14, 50, 18);
+    doc.setFont("helvetica", "bold");
+    doc.text(`No. ${numero}`, 148, 21);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Fecha: ${new Date().toLocaleDateString("es-CO")}`, 148, 28);
 
-    document.body.classList.add("pdf-export");
+    // --- DATOS DEL CLIENTE ---
+    doc.rect(14, 42, 181, 24);
+    doc.setFont("helvetica", "bold");
+    doc.text("Cliente:", 18, 49);
+    doc.text("Teléfono:", 18, 55);
+    doc.text("Dirección:", 18, 61);
 
-    const opt = {
+    doc.setFont("helvetica", "normal");
+    doc.text(cliente, 45, 49);
+    doc.text(telefono, 45, 55);
+    doc.text(direccion, 45, 61);
 
-        margin:0,
+    // --- TABLA DE PRODUCTOS ---
+    let startY = 75;
+    doc.setFillColor(41, 128, 185); // Azul institucional
+    doc.rect(14, startY, 181, 8, "F");
 
-        filename:nombreArchivo,
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.text("Descripción", 18, startY + 5.5);
+    doc.text("Cant", 120, startY + 5.5);
+    doc.text("Precio", 145, startY + 5.5);
+    doc.text("Subtotal", 170, startY + 5.5);
 
-        image:{
-            type:'jpeg',
-            quality:1
-        },
+    // Filas de productos
+    startY += 8;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
 
-        html2canvas:{
-
-            scale:4,
-
-            useCORS:true,
-
-            backgroundColor:"#ffffff",
-
-            scrollX:0,
-
-            scrollY:0
-
-        },
-
-        jsPDF:{
-
-            unit:'mm',
-
-            format:'a4',
-
-            orientation:'portrait'
-
-        },
-
-    
-
-    };
-
-    html2pdf()
-    .set(opt)
-    .from(elemento)
-    .save()
-    .then(()=>{
-
-        document.body.classList.remove("pdf-export");
-
-        guardarVenta();
-
+    factura.forEach(item => {
+        doc.text(String(item.nombre), 18, startY + 6);
+        doc.text(String(item.cantidad), 120, startY + 6);
+        doc.text(`$${formatoMoneda(item.precio)}`, 145, startY + 6);
+        doc.text(`$${formatoMoneda(item.subtotal)}`, 170, startY + 6);
+        
+        doc.line(14, startY + 9, 195, startY + 9); // Línea divisoria de fila
+        startY += 9;
     });
 
+    // --- TOTALES ---
+    startY += 5;
+    doc.setFont("helvetica", "bold");
+    doc.text(`TOTAL: $${formatoMoneda(total)}`, 145, startY, { align: "left" });
+
+    // --- ZONA DE FIRMAS ---
+    startY += 30;
+    doc.line(14, startY, 95, startY); // Línea Entregó
+    doc.line(114, startY, 195, startY); // Línea Recibió
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Entregó", 14, startY + 4);
+    doc.text("Recibió", 114, startY + 4);
+
+    // Incrustar la firma dibujada en el canvas si existe
+    const canvasFirma = document.getElementById("firmaCanvas");
+    if (canvasFirma) {
+        const firmaImgData = canvasFirma.toDataURL("image/png");
+        // Colocamos la imagen de la firma justo encima de la línea de "Recibió"
+        doc.addImage(firmaImgData, 'PNG', 120, startY - 22, 50, 20);
+    }
+
+    // Guardar archivo localmente
+    doc.save(nombreArchivo);
+    guardarVenta();
 }
 
 async function compartirPDF() {
-
     if (factura.length === 0) {
         alert("No hay productos en la remisión.");
         return;
     }
 
-    const elemento = document.getElementById("facturaPDF");
-
-    document.getElementById("pdfCliente").textContent =
-        document.getElementById("clienteNombre").value;
-
-    document.getElementById("pdfTelefono").textContent =
-        document.getElementById("clienteTelefono").value;
-
-    document.getElementById("pdfDireccion").textContent =
-        document.getElementById("clienteDireccion").value;
-
-    document.body.classList.add("pdf-export");
-
-    const cliente =
-        document.getElementById("clienteNombre").value || "Cliente";
-
+    const cliente = document.getElementById("clienteNombre").value || "Cliente";
+    const telefono = document.getElementById("clienteTelefono").value || "";
+    const direccion = document.getElementById("clienteDireccion").value || "";
     const numero = numeroRemision;
+    const nombreArchivo = `Remision_${cliente}_${numero}.pdf`;
 
-    const nombreArchivo =
-        `Remision_${cliente}_${numero}.pdf`;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
-    const opt = {
+    // --- REPETIMOS LA ESTRUCTURA VECTORIAL PARA EL BLOB ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.text("SOLMET", 14, 20);
 
-        margin:0,
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("NIT: 900.000.000-0", 14, 25);
+    doc.text("Tel: 302 423 8890", 14, 30);
+    doc.text("Bogotá D.C.", 14, 35);
 
-        filename:nombreArchivo,
+    doc.rect(145, 14, 50, 18);
+    doc.setFont("helvetica", "bold");
+    doc.text(`No. ${numero}`, 148, 21);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Fecha: ${new Date().toLocaleDateString("es-CO")}`, 148, 28);
 
-        image:{
-            type:'jpeg',
-            quality:1
-        },
+    doc.rect(14, 42, 181, 24);
+    doc.setFont("helvetica", "bold");
+    doc.text("Cliente:", 18, 49);
+    doc.text("Teléfono:", 18, 55);
+    doc.text("Dirección:", 18, 61);
 
-        html2canvas:{
-            scale:4,
-            useCORS:true,
-            backgroundColor:"#ffffff",
-            scrollX:0,
-            scrollY:0,
-           windowWidth:1200,
-            windowHeight:1700
-        },
+    doc.setFont("helvetica", "normal");
+    doc.text(cliente, 45, 49);
+    doc.text(telefono, 45, 55);
+    doc.text(direccion, 45, 61);
 
-        jsPDF:{
-            unit:'mm',
-            format:'a4',
-            orientation:'portrait'
-        }
+    let startY = 75;
+    doc.setFillColor(41, 128, 185);
+    doc.rect(14, startY, 181, 8, "F");
 
-    };
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.text("Descripción", 18, startY + 5.5);
+    doc.text("Cant", 120, startY + 5.5);
+    doc.text("Precio", 145, startY + 5.5);
+    doc.text("Subtotal", 170, startY + 5.5);
 
-    const pdfBlob = await html2pdf()
-        .set(opt)
-        .from(elemento)
-        .outputPdf("blob");
+    startY += 8;
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
 
-    const file = new File(
-        [pdfBlob],
-        nombreArchivo,
-        { type:"application/pdf" }
-    );
+    factura.forEach(item => {
+        doc.text(String(item.nombre), 18, startY + 6);
+        doc.text(String(item.cantidad), 120, startY + 6);
+        doc.text(`$${formatoMoneda(item.precio)}`, 145, startY + 6);
+        doc.text(`$${formatoMoneda(item.subtotal)}`, 170, startY + 6);
+        doc.line(14, startY + 9, 195, startY + 9);
+        startY += 9;
+    });
+
+    startY += 5;
+    doc.setFont("helvetica", "bold");
+    doc.text(`TOTAL: $${formatoMoneda(total)}`, 145, startY);
+
+    startY += 30;
+    doc.line(14, startY, 95, startY);
+    doc.line(114, startY, 195, startY);
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Entregó", 14, startY + 4);
+    doc.text("Recibió", 114, startY + 4);
+
+    const canvasFirma = document.getElementById("firmaCanvas");
+    if (canvasFirma) {
+        const firmaImgData = canvasFirma.toDataURL("image/png");
+        doc.addImage(firmaImgData, 'PNG', 120, startY - 22, 50, 20);
+    }
+
+    // Convertir a Blob y empaquetar para compartir en WhatsApp
+    const pdfBlob = doc.output("blob");
+    const file = new File([pdfBlob], nombreArchivo, { type: "application/pdf" });
 
     try {
-
-        if (navigator.share &&
-            navigator.canShare &&
-            navigator.canShare({ files:[file] })) {
-
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
-
-                title:"Remisión",
-
-                text:`Remisión No. ${numero}`,
-
-                files:[file]
-
+                title: "Remisión",
+                text: `Remisión No. ${numero}`,
+                files: [file]
             });
-
         } else {
-
-            alert("Este dispositivo no permite compartir archivos.");
-
+            alert("Este dispositivo no permite compartir archivos directamente.");
             return;
-
         }
 
-        document.body.classList.remove("pdf-export");
-
-        // Se guarda la venta
+        // Limpieza posterior al compartir con éxito
         guardarVenta();
-
-        // Limpia la firma
         limpiarFirma();
-
-        // Limpia cliente
         document.getElementById("clienteNombre").value = "";
         document.getElementById("clienteTelefono").value = "";
         document.getElementById("clienteDireccion").value = "";
-
-        // Limpia buscador
         document.getElementById("buscarProducto").value = "";
         document.getElementById("resultados").innerHTML = "";
-
-        // Actualiza el siguiente número
         actualizarNumeroRemision();
 
-    } catch(e){
-        document.body.classList.remove("pdf-export");
-
-        console.log("Compartir cancelado.");
-
+    } catch (e) {
+        console.log("Compartir cancelado o fallido.", e);
     }
-
 }
 
 function cerrarSesion() {
@@ -595,4 +590,3 @@ function descargarReporteDia() {
 
   html2pdf().set(opt).from(contenido).save();
 }
-
