@@ -13,7 +13,6 @@ function formatoMoneda(valor) {
 }
 
 window.onload = function () {
-
   const activado = localStorage.getItem("activado");
   const sesion = localStorage.getItem("sesionActiva");
 
@@ -55,24 +54,24 @@ function login() {
 }
 
 function mostrarVista(vista) {
-
     document.querySelectorAll(".vista").forEach(v => {
         v.style.display = "none";
     });
 
-    document.getElementById(vista).style.display = "block";
+    const vistaElem = document.getElementById(vista);
+    if (vistaElem) vistaElem.style.display = "block";
 
     const botones = document.getElementById("botonesAccion");
-
-    if (vista === "facturacionVista") {
-        botones.style.display = "block";
-    } else {
-        botones.style.display = "none";
+    if (botones) {
+        if (vista === "facturacionVista") {
+            botones.style.display = "block";
+        } else {
+            botones.style.display = "none";
+        }
     }
 }
 
-document.getElementById("guardarProducto").addEventListener("click", function () {
-
+document.getElementById("guardarProducto")?.addEventListener("click", function () {
   const nombre = document.getElementById("nombreProducto").value;
   const precio = document.getElementById("precioProducto").value;
 
@@ -89,6 +88,8 @@ document.getElementById("guardarProducto").addEventListener("click", function ()
 
 function mostrarCatalogo() {
   const contenedor = document.getElementById("catalogo");
+  if (!contenedor) return;
+
   contenedor.innerHTML = "";
 
   productos.forEach(p => {
@@ -98,7 +99,7 @@ function mostrarCatalogo() {
     div.innerHTML = `
       <h3>${p.nombre}</h3>
       <p class="precio">$${formatoMoneda(p.precio)}</p>
-      <button onclick='agregarProductoFactura(${JSON.stringify(p)})'>Agregar</button>
+      <button type="button" onclick='agregarProductoFactura(${JSON.stringify(p)})'>Agregar</button>
     `;
 
     contenedor.appendChild(div);
@@ -108,10 +109,9 @@ function mostrarCatalogo() {
 // ================= AGREGAR PRODUCTO A LA FACTURA =================
 function agregarProductoFactura(producto, cantidad = 1) {
     const cant = parseInt(cantidad) || 1;
-    const precioNum = Number(producto.precio);
+    const precioNum = Number(producto.precio) || 0;
     const subtotal = precioNum * cant;
 
-    // Verificar si el producto ya está en la factura para sumar cantidades
     const index = factura.findIndex(item => item.nombre === producto.nombre);
 
     if (index !== -1) {
@@ -129,17 +129,19 @@ function agregarProductoFactura(producto, cantidad = 1) {
     actualizarFactura();
 }
 
-  function irAFacturacion() {
+function irAFacturacion() {
+    mostrarVista("facturacionVista");
+    actualizarNumeroRemision();
+    actualizarFactura();
+    
+    const fechaElem = document.getElementById("fechaActual");
+    if (fechaElem) {
+        fechaElem.innerText = new Date().toLocaleDateString("es-CO");
+    }
+}
 
-      mostrarVista("facturacionVista");
-
-      actualizarNumeroRemision();
-
-      document.getElementById("fechaActual").innerText =
-          new Date().toLocaleDateString("es-CO");
-  }
-document.getElementById("buscarProducto").addEventListener("input", function () {
-
+// ================= BUSCADOR CORREGIDO =================
+document.getElementById("buscarProducto")?.addEventListener("input", function () {
     const texto = this.value.toLowerCase().trim();
     const resultados = document.getElementById("resultados");
 
@@ -148,11 +150,8 @@ document.getElementById("buscarProducto").addEventListener("input", function () 
     if (texto === "") return;
 
     productos.forEach(p => {
-
         if (p.nombre.toLowerCase().includes(texto)) {
-
             const div = document.createElement("div");
-
             div.className = "resultadoProducto";
 
             div.innerHTML = `
@@ -160,47 +159,41 @@ document.getElementById("buscarProducto").addEventListener("input", function () 
                     <h4>${p.nombre}</h4>
                     <p>$${formatoMoneda(p.precio)}</p>
                 </div>
-
                 <div class="accionesProducto">
-
-                    <input
-                        type="number"
-                        class="cantidadProducto"
-                        value="1"
-                        min="1">
-
-                    <button class="btnAgregar">
-                        Agregar
-                    </button>
-
+                    <input type="number" class="cantidadProducto" value="1" min="1">
+                    <button type="button" class="btnAgregar">Agregar</button>
                 </div>
             `;
 
-            const cantidad = div.querySelector(".cantidadProducto");
+            const btn = div.querySelector(".btnAgregar");
+            const inputCant = div.querySelector(".cantidadProducto");
 
-            div.querySelector(".btnAgregar").onclick = () => {
-                agregarProductoFactura(p, cantidad.value);
+            btn.addEventListener("click", function (e) {
+                e.preventDefault();
+                const cant = parseInt(inputCant.value) || 1;
+                
+                agregarProductoFactura(p, cant);
 
-                // Limpiar buscador después de agregar
+                // Limpiar buscador
                 document.getElementById("buscarProducto").value = "";
                 resultados.innerHTML = "";
-            };
+            });
 
             resultados.appendChild(div);
         }
     });
 });
 
- 
 function actualizarFactura() {
-
     const tabla = document.getElementById("tablaFactura");
-    tabla.innerHTML = "";
+    const totalElem = document.getElementById("total");
 
+    if (!tabla) return;
+
+    tabla.innerHTML = "";
     total = 0;
 
     factura.forEach(item => {
-
         total += Number(item.subtotal);
 
         const fila = document.createElement("tr");
@@ -213,13 +206,12 @@ function actualizarFactura() {
         `;
 
         tabla.appendChild(fila);
-
     });
 
-    document.getElementById("total").innerText = formatoMoneda(total);
-
+    if (totalElem) {
+        totalElem.innerText = formatoMoneda(total);
+    }
 }
-
 
 function generarPDF() {
     const cliente = document.getElementById("clienteNombre").value || "Cliente";
@@ -242,7 +234,6 @@ function generarPDF() {
     doc.text("Tel: 302 423 8890", 14, 30);
     doc.text("Bogotá D.C.", 14, 35);
 
-    // Cuadro superior derecho (No. y Fecha)
     doc.rect(145, 14, 50, 18);
     doc.setFont("helvetica", "bold");
     doc.text(`No. ${numero}`, 148, 21);
@@ -263,7 +254,7 @@ function generarPDF() {
 
     // --- TABLA DE PRODUCTOS ---
     let startY = 75;
-    doc.setFillColor(41, 128, 185); // Azul institucional
+    doc.setFillColor(41, 128, 185);
     doc.rect(14, startY, 181, 8, "F");
 
     doc.setTextColor(255, 255, 255);
@@ -273,7 +264,6 @@ function generarPDF() {
     doc.text("Precio", 145, startY + 5.5);
     doc.text("Subtotal", 170, startY + 5.5);
 
-    // Filas de productos
     startY += 8;
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "normal");
@@ -284,34 +274,29 @@ function generarPDF() {
         doc.text(`$${formatoMoneda(item.precio)}`, 145, startY + 6);
         doc.text(`$${formatoMoneda(item.subtotal)}`, 170, startY + 6);
         
-        doc.line(14, startY + 9, 195, startY + 9); // Línea divisoria de fila
+        doc.line(14, startY + 9, 195, startY + 9);
         startY += 9;
     });
 
-    // --- TOTALES ---
     startY += 5;
     doc.setFont("helvetica", "bold");
     doc.text(`TOTAL: $${formatoMoneda(total)}`, 145, startY, { align: "left" });
 
-    // --- ZONA DE FIRMAS ---
     startY += 30;
-    doc.line(14, startY, 95, startY); // Línea Entregó
-    doc.line(114, startY, 195, startY); // Línea Recibió
+    doc.line(14, startY, 95, startY);
+    doc.line(114, startY, 195, startY);
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.text("Entregó", 14, startY + 4);
     doc.text("Recibió", 114, startY + 4);
 
-    // Incrustar la firma dibujada en el canvas si existe
     const canvasFirma = document.getElementById("firmaCanvas");
     if (canvasFirma) {
         const firmaImgData = canvasFirma.toDataURL("image/png");
-        // Colocamos la imagen de la firma justo encima de la línea de "Recibió"
         doc.addImage(firmaImgData, 'PNG', 120, startY - 22, 50, 20);
     }
 
-    // Guardar archivo localmente
     doc.save(nombreArchivo);
     guardarVenta();
 }
@@ -331,7 +316,6 @@ async function compartirPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
-    // --- REPETIMOS LA ESTRUCTURA VECTORIAL PARA EL BLOB ---
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
     doc.text("SOLMET", 14, 20);
@@ -402,7 +386,6 @@ async function compartirPDF() {
         doc.addImage(firmaImgData, 'PNG', 120, startY - 22, 50, 20);
     }
 
-    // Convertir a Blob y empaquetar para compartir en WhatsApp
     const pdfBlob = doc.output("blob");
     const file = new File([pdfBlob], nombreArchivo, { type: "application/pdf" });
 
@@ -418,7 +401,6 @@ async function compartirPDF() {
             return;
         }
 
-        // Limpieza posterior al compartir con éxito
         guardarVenta();
         limpiarFirma();
         document.getElementById("clienteNombre").value = "";
@@ -445,18 +427,20 @@ let dibujando = false;
 
 if (canvas) {
     ctx = canvas.getContext("2d");
-    ctx.lineWidth = 3;
+    if (ctx) {
+        ctx.lineWidth = 3;
+    }
 
     // 🖱️ PC
     canvas.addEventListener("mousedown", () => dibujando = true);
 
     canvas.addEventListener("mouseup", () => {
         dibujando = false;
-        ctx.beginPath();
+        if (ctx) ctx.beginPath();
     });
 
     canvas.addEventListener("mousemove", (e) => {
-        if (!dibujando) return;
+        if (!dibujando || !ctx) return;
         ctx.lineWidth = 3;
         ctx.lineCap = "round";
         ctx.lineTo(e.offsetX, e.offsetY);
@@ -473,11 +457,11 @@ if (canvas) {
 
     canvas.addEventListener("touchend", () => {
         dibujando = false;
-        ctx.beginPath();
+        if (ctx) ctx.beginPath();
     });
 
     canvas.addEventListener("touchmove", (e) => {
-        if (!dibujando) return;
+        if (!dibujando || !ctx) return;
         const rect = canvas.getBoundingClientRect();
         const touch = e.touches[0];
         const x = touch.clientX - rect.left;
@@ -499,19 +483,16 @@ function limpiarFirma() {
     }
 }
 
-ctx.lineWidth = 3;
-
 function actualizarNumeroRemision() {
-  document.getElementById("numeroRemision").innerText = numeroRemision;
+  const elem = document.getElementById("numeroRemision");
+  if (elem) elem.innerText = numeroRemision;
 }
 
 // ================= HISTORIAL =================
 
 let ventas = JSON.parse(localStorage.getItem("ventas")) || [];
 
-// Guardar venta automáticamente
 function guardarVenta() {
-
   if (factura.length === 0) {
     alert("No hay productos en la factura");
     return false;
@@ -547,6 +528,8 @@ function verHistorial() {
   mostrarVista("historialVista");
 
   const contenedor = document.getElementById("listaHistorial");
+  if (!contenedor) return;
+
   contenedor.innerHTML = "";
 
   let totalDia = 0;
@@ -554,7 +537,6 @@ function verHistorial() {
 
   ventas.forEach(v => {
     if (v.fecha === hoy) {
-
       totalDia += v.total;
 
       const div = document.createElement("div");
@@ -573,13 +555,13 @@ function verHistorial() {
     }
   });
 
-  document.getElementById("totalDia").innerText = totalDia;
+  const totalDiaElem = document.getElementById("totalDia");
+  if (totalDiaElem) totalDiaElem.innerText = formatoMoneda(totalDia);
 }
 
 // ================= PDF DEL DÍA =================
 
 function descargarReporteDia() {
-
   const hoy = new Date().toLocaleDateString();
   let contenido = `
     <h2>REPORTE DE VENTAS</h2>
@@ -594,7 +576,7 @@ function descargarReporteDia() {
       contenido += `
         <p>
           Remisión #${v.numero} - ${v.cliente}<br>
-          Total: $${v.total}
+          Total: $${formatoMoneda(v.total)}
         </p>
       `;
       totalDia += v.total;
@@ -615,4 +597,5 @@ function descargarReporteDia() {
 
   html2pdf().set(opt).from(contenido).save();
 }
+
 
