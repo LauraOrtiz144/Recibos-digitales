@@ -105,6 +105,30 @@ function mostrarCatalogo() {
   });
 }
 
+// ================= AGREGAR PRODUCTO A LA FACTURA =================
+function agregarProductoFactura(producto, cantidad = 1) {
+    const cant = parseInt(cantidad) || 1;
+    const precioNum = Number(producto.precio);
+    const subtotal = precioNum * cant;
+
+    // Verificar si el producto ya está en la factura para sumar cantidades
+    const index = factura.findIndex(item => item.nombre === producto.nombre);
+
+    if (index !== -1) {
+        factura[index].cantidad += cant;
+        factura[index].subtotal = factura[index].cantidad * factura[index].precio;
+    } else {
+        factura.push({
+            nombre: producto.nombre,
+            precio: precioNum,
+            cantidad: cant,
+            subtotal: subtotal
+        });
+    }
+
+    actualizarFactura();
+}
+
   function irAFacturacion() {
 
       mostrarVista("facturacionVista");
@@ -414,64 +438,65 @@ function cerrarSesion() {
   mostrarVista("loginVista");
 }
 
+// ================= CONFIGURACIÓN DE FIRMA =================
 const canvas = document.getElementById("firmaCanvas");
-const ctx = canvas.getContext("2d");
-
+let ctx = null;
 let dibujando = false;
 
-// 🖱️ PC
-canvas.addEventListener("mousedown", () => dibujando = true);
+if (canvas) {
+    ctx = canvas.getContext("2d");
+    ctx.lineWidth = 3;
 
-canvas.addEventListener("mouseup", () => {
-  dibujando = false;
-  ctx.beginPath();
-});
+    // 🖱️ PC
+    canvas.addEventListener("mousedown", () => dibujando = true);
 
-canvas.addEventListener("mousemove", (e) => {
-  if (!dibujando) return;
+    canvas.addEventListener("mouseup", () => {
+        dibujando = false;
+        ctx.beginPath();
+    });
 
-  ctx.lineWidth = 3;
-  ctx.lineCap = "round";
+    canvas.addEventListener("mousemove", (e) => {
+        if (!dibujando) return;
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
+    });
 
-  ctx.lineTo(e.offsetX, e.offsetY);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(e.offsetX, e.offsetY);
-});
+    // 📱 CELULAR
+    canvas.addEventListener("touchstart", (e) => {
+        dibujando = true;
+        e.preventDefault();
+    });
 
-// 📱 CELULAR (LA CLAVE)
-canvas.addEventListener("touchstart", (e) => {
-  dibujando = true;
-  e.preventDefault();
-});
+    canvas.addEventListener("touchend", () => {
+        dibujando = false;
+        ctx.beginPath();
+    });
 
-canvas.addEventListener("touchend", () => {
-  dibujando = false;
-  ctx.beginPath();
-});
+    canvas.addEventListener("touchmove", (e) => {
+        if (!dibujando) return;
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
 
-canvas.addEventListener("touchmove", (e) => {
-  if (!dibujando) return;
-
-  const rect = canvas.getBoundingClientRect();
-  const touch = e.touches[0];
-
-  const x = touch.clientX - rect.left;
-  const y = touch.clientY - rect.top;
-
-  ctx.lineWidth = 3;
-  ctx.lineCap = "round";
-
-  ctx.lineTo(x, y);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-
-  e.preventDefault();
-});
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        e.preventDefault();
+    });
+}
 
 function limpiarFirma() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (canvas && ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
 }
 
 ctx.lineWidth = 3;
@@ -590,3 +615,4 @@ function descargarReporteDia() {
 
   html2pdf().set(opt).from(contenido).save();
 }
+
