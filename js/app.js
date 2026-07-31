@@ -3,7 +3,7 @@ let factura = [];
 let total = 0;
 let numeroRemision = parseInt(localStorage.getItem("numeroRemision")) || 1;
 
-const LIMITE_REMISION = 100;
+const LIMITE_REMISION = 1000;
 
 function formatoMoneda(valor) {
     return Number(valor).toLocaleString("es-CO", {
@@ -530,8 +530,12 @@ function guardarVenta() {
   ventas.push(venta);
   localStorage.setItem("ventas", JSON.stringify(ventas));
 
-  numeroRemision++;
+ numeroRemision++;
+  if (numeroRemision > LIMITE_REMISION) {
+      numeroRemision = 1; // Si supera los 10,000, vuelve a empezar en 1
+  }
   localStorage.setItem("numeroRemision", numeroRemision);
+  // ------------------------------------------
 
   factura = [];
   actualizarFactura();
