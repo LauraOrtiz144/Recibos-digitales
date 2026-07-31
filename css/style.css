@@ -3,9 +3,11 @@
 ==================================================*/
 
 body{
-    margin:0;
-    font-family:'Poppins',sans-serif;
-    background:linear-gradient(135deg,#caf7a0,#3e3333);
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #caf7a0, #3e3333);
+    min-height: 100vh;          /* <-- Obliga a que ocupe al menos toda la pantalla */
+    background-attachment: fixed; /* <-- Fija el degradado para que no se corte al deslizar */
 }
 
 .container{
@@ -397,9 +399,24 @@ button:hover{
 @media (max-width:700px){
 
     .container{
-        padding:10px;
+        padding: 15px;          /* <-- Un poco más de respiro a los lados */
+        box-sizing: border-box;
     }
 
+    .card{
+        padding: 15px;
+        border-radius: 15px;
+        margin-bottom: 15px;    /* <-- Separa las tarjetas entre sí */
+    }
+
+    .factura-pro{
+        width: 100%;
+        min-height: auto;
+        padding: 15px;
+        box-sizing: border-box;
+    }
+
+    /* ... (deja el resto de tu media query tal cual lo tienes) ... */
     .factura-pro{
         width:100%;
         min-height:auto;
