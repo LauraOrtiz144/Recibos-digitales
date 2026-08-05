@@ -3,7 +3,7 @@ let factura = [];
 let total = 0;
 let numeroRemision = parseInt(localStorage.getItem("numeroRemision")) || 1;
 
-const LIMITE_REMISION = 1000;
+const LIMITE_REMISION = 100;
 
 function formatoMoneda(valor) {
     return Number(valor).toLocaleString("es-CO", {
@@ -30,15 +30,34 @@ window.onload = function () {
   }
 };
 
-function activar() {
-  const codigo = document.getElementById("codigo")?.value;
+async function activar() {
+  const codigoInput = document.getElementById("codigo");
+  const codigo = codigoInput ? codigoInput.value.trim() : "";
 
-  if (codigo === "1234") {
-    localStorage.setItem("activado", "true");
-    alert("Activado correctamente");
-    mostrarVista("loginVista");
-  } else {
-    alert("Código incorrecto");
+  if (!codigo) {
+    alert("Por favor ingresa un código de activación.");
+    return;
+  }
+
+  // ⚠️ REEMPLAZA ESTO CON LA URL REAL QUE TE DIO GOOGLE APPS SCRIPT
+  const urlAPI = "https://script.google.com/macros/s/AKfycbzrgBvyI84vWnFILrinONVjCQzpLKXwfOWtDCoQYd3VSv84xIwD1knmdOrqg_C5c0rkKQ/exec";
+
+  try {
+    alert("Verificando licencia en la nube...");
+
+    const respuesta = await fetch(`${urlAPI}?codigo=${codigo}`);
+    const resultado = await respuesta.json();
+
+    if (resultado.success) {
+      localStorage.setItem("activado", "true");
+      alert("¡Activado correctamente!");
+      mostrarVista("loginVista");
+    } else {
+      alert("Error: " + resultado.message);
+    }
+  } catch (error) {
+    console.error(error);
+    alert("Error de conexión. Verifica que tengas internet para la activación inicial.");
   }
 }
 
@@ -530,12 +549,8 @@ function guardarVenta() {
   ventas.push(venta);
   localStorage.setItem("ventas", JSON.stringify(ventas));
 
- numeroRemision++;
-  if (numeroRemision > LIMITE_REMISION) {
-      numeroRemision = 1; // Si supera los 10,000, vuelve a empezar en 1
-  }
+  numeroRemision++;
   localStorage.setItem("numeroRemision", numeroRemision);
-  // ------------------------------------------
 
   factura = [];
   actualizarFactura();
@@ -619,3 +634,4 @@ function descargarReporteDia() {
 
   html2pdf().set(opt).from(contenido).save();
 }
+
