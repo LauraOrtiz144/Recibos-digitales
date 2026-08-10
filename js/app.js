@@ -39,7 +39,7 @@ async function activar() {
     return;
   }
 
-  const urlAPI = "AQUÍ_TU_URL_DE_APPS_SCRIPT";
+  const urlAPI = "https://script.google.com/macros/s/AKfycbzrgBvyI84vWnFILrinONVjCQzpLKXwfOWtDCoQYd3VSv84xIwD1knmdOrqg_C5c0rkKQ/exec";
 
   try {
     alert("Verificando licencia en la nube...");
