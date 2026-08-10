@@ -42,9 +42,7 @@ async function activar() {
   const urlAPI = "https://script.google.com/macros/s/AKfycbzrgBvyI84vWnFILrinONVjCQzpLKXwfOWtDCoQYd3VSv84xIwD1knmdOrqg_C5c0rkKQ/exec";
 
   try {
-    alert("Verificando licencia en la nube...");
-
-    // ⚠️ Asegúrate de incluir { redirect: 'follow' }
+    // 💡 Quitamos el alert bloqueante y hacemos la petición directamente en silencio
     const respuesta = await fetch(`${urlAPI}?codigo=${codigo}`, {
       redirect: 'follow'
     });
@@ -60,7 +58,7 @@ async function activar() {
     }
   } catch (error) {
     console.error(error);
-    alert("Error de conexión. Verifica tu internet.");
+    alert("Error de conexión. Verifica tu internet o la URL.");
   }
 }
 
@@ -637,4 +635,5 @@ function descargarReporteDia() {
 
   html2pdf().set(opt).from(contenido).save();
 }
+
 
