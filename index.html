@@ -16,13 +16,14 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2980b9"> <!-- Color de la barra de navegación en Android -->
   <link rel="icon" type="image/png" href="icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="512x512" href="./icons/icon-512.png"> 
 
   <!-- 2. Configuración específica para iOS (Apple / Safari) -->
   <meta name="apple-mobile-web-app-capable" content="yes"> <!-- Pantalla completa en iOS -->
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> <!-- Barra superior transparente/negra -->
   <meta name="apple-mobile-web-app-title" content="SOLMET"> <!-- Nombre bajo el ícono en iOS -->
-  <link rel="apple-touch-icon" href="icons/icon-192.png"> <!-- Ícono de instalación para iPhone/iPad -->
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="./icons/icon-512.png"> 
+  <!-- Ícono de instalación para iPhone/iPad -->
 </head>
 <body>
 
@@ -32,6 +33,7 @@
   <div id="activacionVista" class="vista">
     <h2>Activar sistema</h2>
     <input type="text" id="codigo" placeholder="Código de activación">
+    <input type="text" id="nombreEmpleado" placeholder="Tu nombre o el del empleado">
     <button onclick="activar()">Activar</button>
   </div>
 
@@ -67,6 +69,7 @@
 
     <!-- 🔍 BUSCADOR FUERA DEL PDF -->
     <input type="text" id="buscarProducto" placeholder="Buscar producto">
+    <div id="listaSugerencias" class="sugerencias-box"></div>
     <div id="resultados"></div>
 
     <!-- 📄 PDF LIMPIO -->
@@ -237,3 +240,4 @@
   </script>
 </body>
 </html> 
+
