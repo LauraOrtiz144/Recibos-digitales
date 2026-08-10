@@ -34,15 +34,18 @@ window.onload = async function () {
 // ================= ACTIVACIÓN CON LICENCIA =================
 async function activar() {
   const codigoInput = document.getElementById("codigo");
+  const empleadoInput = document.getElementById("nombreEmpleado");
+  
   const codigo = codigoInput ? codigoInput.value.trim() : "";
+  const nombreEmpleado = empleadoInput ? empleadoInput.value.trim() : "Empleado";
 
-  if (!codigo) {
-    alert("Por favor ingresa un código de activación.");
+  if (!codigo || !nombreEmpleado) {
+    alert("Por favor ingresa el código de activación y tu nombre.");
     return;
   }
 
   try {
-    const respuesta = await fetch(`${urlAPI}?accion=activar&codigo=${codigo}`, {
+    const respuesta = await fetch(`${urlAPI}?accion=activar&codigo=${codigo}&empleado=${encodeURIComponent(nombreEmpleado)}`, {
       redirect: 'follow'
     });
     
@@ -50,6 +53,7 @@ async function activar() {
 
     if (resultado.success) {
       localStorage.setItem("activado", "true");
+      localStorage.setItem("empleado", nombreEmpleado); // 👈 Guarda el nombre real del empleado
       alert("¡Activado correctamente!");
       mostrarVista("loginVista");
     } else {
@@ -59,6 +63,46 @@ async function activar() {
     console.error(error);
     alert("Error de conexión. Verifica tu internet o la URL.");
   }
+}
+
+async function verHistorial() {
+    mostrarVista("historialVista");
+    const lista = document.getElementById("listaHistorial");
+    if (!lista) return;
+
+    lista.innerHTML = "<p>Cargando historial de la nube...</p>";
+
+    try {
+        const respuesta = await fetch(`${urlAPI}?accion=obtenerHistorial`, { redirect: 'follow' });
+        const resultado = await respuesta.json();
+
+        if (resultado.success) {
+            lista.innerHTML = "";
+
+            if (resultado.historial.length === 0) {
+                lista.innerHTML = "<p>No hay ventas registradas todavía.</p>";
+                return;
+            }
+
+            resultado.historial.forEach(item => {
+                const div = document.createElement("div");
+                div.className = "historial-item";
+                div.style.cssText = "background: #f9f9f9; margin-bottom: 8px; padding: 10px; border-radius: 5px; border-left: 4px solid #2980b9;";
+                
+                div.innerHTML = `
+                    <p><b>Fecha:</b> ${new Date(item.fecha).toLocaleString("es-CO")}</p>
+                    <p><b>Empleado:</b> ${item.empleado}</p>
+                    <p><b>Producto:</b> ${item.producto} | <b>Cant:</b> ${item.cantidad}</p>
+                `;
+                lista.appendChild(div);
+            });
+        } else {
+            lista.innerHTML = "<p>No se pudo cargar el historial.</p>";
+        }
+    } catch (error) {
+        console.error(error);
+        lista.innerHTML = "<p>Error de conexión al obtener el historial.</p>";
+    }
 }
 
 function login() {
