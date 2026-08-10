@@ -39,13 +39,16 @@ async function activar() {
     return;
   }
 
-  // ⚠️ REEMPLAZA ESTO CON LA URL REAL QUE TE DIO GOOGLE APPS SCRIPT
-  const urlAPI = "https://script.google.com/macros/s/AKfycbzrgBvyI84vWnFILrinONVjCQzpLKXwfOWtDCoQYd3VSv84xIwD1knmdOrqg_C5c0rkKQ/exec";
+  const urlAPI = "AQUÍ_TU_URL_DE_APPS_SCRIPT";
 
   try {
     alert("Verificando licencia en la nube...");
 
-    const respuesta = await fetch(`${urlAPI}?codigo=${codigo}`);
+    // ⚠️ Asegúrate de incluir { redirect: 'follow' }
+    const respuesta = await fetch(`${urlAPI}?codigo=${codigo}`, {
+      redirect: 'follow'
+    });
+    
     const resultado = await respuesta.json();
 
     if (resultado.success) {
@@ -57,7 +60,7 @@ async function activar() {
     }
   } catch (error) {
     console.error(error);
-    alert("Error de conexión. Verifica que tengas internet para la activación inicial.");
+    alert("Error de conexión. Verifica tu internet.");
   }
 }
 
