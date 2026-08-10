@@ -64,13 +64,14 @@ async function activar() {
     alert("Error de conexión. Verifica tu internet o la URL.");
   }
 }
-
+// ================= VER HISTORIAL DESDE LA NUBE =================
 async function verHistorial() {
     mostrarVista("historialVista");
     const lista = document.getElementById("listaHistorial");
+    const spanTotalDia = document.getElementById("totalDia");
     if (!lista) return;
 
-    lista.innerHTML = "<p>Cargando historial de la nube...</p>";
+    lista.innerHTML = "<p style='text-align:center;'>Cargando historial...</p>";
 
     try {
         const respuesta = await fetch(`${urlAPI}?accion=obtenerHistorial`, { redirect: 'follow' });
@@ -78,24 +79,38 @@ async function verHistorial() {
 
         if (resultado.success) {
             lista.innerHTML = "";
+            let sumaTotalDia = 0;
 
             if (resultado.historial.length === 0) {
-                lista.innerHTML = "<p>No hay ventas registradas todavía.</p>";
+                lista.innerHTML = "<p style='text-align:center;'>No hay ventas registradas todavía.</p>";
+                if (spanTotalDia) spanTotalDia.innerText = "0";
                 return;
             }
 
             resultado.historial.forEach(item => {
+                sumaTotalDia += item.subtotal; // Suma para el total del día
+
                 const div = document.createElement("div");
                 div.className = "historial-item";
-                div.style.cssText = "background: #f9f9f9; margin-bottom: 8px; padding: 10px; border-radius: 5px; border-left: 4px solid #2980b9;";
+                // Diseño tipo tarjeta limpia y moderna
+                div.style.cssText = "background: white; margin-bottom: 12px; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid #2980b9;";
                 
                 div.innerHTML = `
-                    <p><b>Fecha:</b> ${new Date(item.fecha).toLocaleString("es-CO")}</p>
-                    <p><b>Empleado:</b> ${item.empleado}</p>
-                    <p><b>Producto:</b> ${item.producto} | <b>Cant:</b> ${item.cantidad}</p>
+                    <p style="margin: 0 0 5px 0; font-size: 0.85rem; color: #666;"><b>Fecha:</b> ${new Date(item.fecha).toLocaleString("es-CO")}</p>
+                    <p style="margin: 0 0 5px 0; font-size: 0.9rem;"><b>Empleado:</b> ${item.empleado}</p>
+                    <p style="margin: 0 0 5px 0; font-size: 0.95rem; color: #2c3e50;"><b>Producto:</b> ${item.producto}</p>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.9rem; border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px;">
+                        <span>Cant: <b>${item.cantidad}</b></span>
+                        <span style="color: #27ae60; font-weight: bold;">Subtotal: $${item.subtotal.toLocaleString()}</span>
+                    </div>
                 `;
                 lista.appendChild(div);
             });
+
+            // Muestra el total real del día formateado
+            if (spanTotalDia) {
+                spanTotalDia.innerText = sumaTotalDia.toLocaleString();
+            }
         } else {
             lista.innerHTML = "<p>No se pudo cargar el historial.</p>";
         }
