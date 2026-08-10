@@ -636,4 +636,3 @@ function descargarReporteDia() {
   html2pdf().set(opt).from(contenido).save();
 }
 
-
