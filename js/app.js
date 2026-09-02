@@ -57,13 +57,14 @@ async function activar() {
     
     const resultado = await respuesta.json();
 
-    if (resultado.success) {
+ if (resultado.success) {
       localStorage.setItem("activado", "true");
-      localStorage.setItem("empleado", nombreEmpleado);
-     localStorage.setItem("urlClienteAPI", resultado.urlCliente); 
-     localStorage.setItem("pinCliente", resultado.pin); // 👈 Guarda el PIN del cliente
-     alert("¡Activado correctamente!");
-     mostrarVista("loginVista");
+      localStorage.setItem("urlClienteAPI", resultado.urlCliente); 
+      localStorage.setItem("pinJefe", resultado.pinJefe);         // 👈 Guarda el PIN del jefe
+      localStorage.setItem("pinEmpleado", resultado.pinEmpleado); // 👈 Guarda el PIN de empleado
+      
+      alert("¡Activado correctamente!");
+      mostrarVista("loginVista");
     } else {
       alert("Error: " + resultado.message);
     }
@@ -91,13 +92,24 @@ async function verHistorial() {
             lista.innerHTML = "";
             let sumaTotalDia = 0;
 
-            if (resultado.historial.length === 0) {
-                lista.innerHTML = "<p style='text-align:center;'>No hay ventas registradas todavía.</p>";
+            const rol = localStorage.getItem("rol") || "empleado";
+            const empleadoActual = localStorage.getItem("empleado") || "";
+
+            // 👇 SI ES EMPLEADO: Filtra solo lo suyo. SI ES JEFE: Ve todo el historial de la empresa.
+            let ventasMostrar = resultado.historial;
+            if (rol === "empleado") {
+                ventasMostrar = resultado.historial.filter(item => 
+                    item.empleado.trim().toLowerCase() === empleadoActual.trim().toLowerCase()
+                );
+            }
+
+            if (ventasMostrar.length === 0) {
+                lista.innerHTML = "<p style='text-align:center;'>No hay ventas registradas.</p>";
                 if (spanTotalDia) spanTotalDia.innerText = "0";
                 return;
             }
 
-            resultado.historial.forEach(item => {
+            ventasMostrar.forEach(item => {
                 sumaTotalDia += item.subtotal; 
                 const numRemisionStr = String(item.numRemision).padStart(4, '0');
 
@@ -133,18 +145,36 @@ async function verHistorial() {
 }
 
 function login() {
-  const pinIngresado = document.getElementById("pin").value;
-  const pinCorrecto = localStorage.getItem("pinCliente") || "1234"; // Si no hay, usa 1234 por defecto
+  const pinIngresado = document.getElementById("pin").value.trim();
+  const nombreInput = document.getElementById("nombreEmpleado")?.value.trim(); // Asegúrate de tener un input para el nombre en el login si es necesario
 
-  if (pinIngresado === pinCorrecto) {
+  const pinJefe = localStorage.getItem("pinJefe") || "9999";
+  const pinEmpleado = localStorage.getItem("pinEmpleado") || "1234";
+
+  if (pinIngresado === pinJefe) {
+    // Es el JEFE (dueño o administrador)
     localStorage.setItem("sesionActiva", "true");
+    localStorage.setItem("rol", "jefe");
+    localStorage.setItem("empleado", "Administrador");
     mostrarVista("catalogoVista");
     cargarInventarioDesdeNube().then(() => mostrarCatalogo());
+
+  } else if (pinIngresado === pinEmpleado) {
+    // Es un EMPLEADO RASO
+    if (!nombreInput) {
+      alert("Por favor ingresa tu nombre de empleado para continuar.");
+      return;
+    }
+    localStorage.setItem("sesionActiva", "true");
+    localStorage.setItem("rol", "empleado");
+    localStorage.setItem("empleado", nombreInput); // Registra el nombre real de quin está vendiendo
+    mostrarVista("catalogoVista");
+    cargarInventarioDesdeNube().then(() => mostrarCatalogo());
+
   } else {
-    alert("PIN incorrecto");
+    alert("PIN incorrecto.");
   }
 }
-
 function mostrarVista(vista) {
     document.querySelectorAll(".vista").forEach(v => {
         v.style.display = "none";
