@@ -146,7 +146,7 @@ async function verHistorial() {
 
 function login() {
   const pinIngresado = document.getElementById("pin").value.trim();
-  const nombreInput = document.getElementById("nombreEmpleado")?.value.trim(); // Asegúrate de tener un input para el nombre en el login si es necesario
+  const nombreInput = document.getElementById("nombreLogin")?.value.trim(); // Asegúrate de tener un input para el nombre en el login si es necesario
 
   const pinJefe = localStorage.getItem("pinJefe") || "9999";
   const pinEmpleado = localStorage.getItem("pinEmpleado") || "1234";
