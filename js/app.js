@@ -60,12 +60,10 @@ async function activar() {
     if (resultado.success) {
       localStorage.setItem("activado", "true");
       localStorage.setItem("empleado", nombreEmpleado);
-      
-      // 🔑 Guarda automáticamente la URL del Google Sheet específico de este cliente
-      localStorage.setItem("urlClienteAPI", resultado.urlCliente); 
-
-      alert("¡Activado correctamente!");
-      mostrarVista("loginVista");
+     localStorage.setItem("urlClienteAPI", resultado.urlCliente); 
+     localStorage.setItem("pinCliente", resultado.pin); // 👈 Guarda el PIN del cliente
+     alert("¡Activado correctamente!");
+     mostrarVista("loginVista");
     } else {
       alert("Error: " + resultado.message);
     }
@@ -135,9 +133,10 @@ async function verHistorial() {
 }
 
 function login() {
-  const pin = document.getElementById("pin").value;
+  const pinIngresado = document.getElementById("pin").value;
+  const pinCorrecto = localStorage.getItem("pinCliente") || "1234"; // Si no hay, usa 1234 por defecto
 
-  if (pin === "1234") {
+  if (pinIngresado === pinCorrecto) {
     localStorage.setItem("sesionActiva", "true");
     mostrarVista("catalogoVista");
     cargarInventarioDesdeNube().then(() => mostrarCatalogo());
