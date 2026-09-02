@@ -1,10 +1,15 @@
-let productos = []; // Ahora vendrá directamente de Google Sheets
+let productos = []; 
 let factura = [];
 let total = 0;
-let numeroRemision = 1; // Se actualizará automáticamente desde la nube
+let numeroRemision = 1; 
 
-// ⚠️ URL DE TU API DE GOOGLE APPS SCRIPT
-const urlAPI = "https://script.google.com/macros/s/AKfycbzrgBvyI84vWnFILrinONVjCQzpLKXwfOWtDCoQYd3VSv84xIwD1knmdOrqg_C5c0rkKQ/exec";
+// ⚠️ 1. PEGA AQUÍ LA URL DE LA APLICACIÓN WEB DE TU HOJA MASTER DE LICENCIAS
+const urlMaster = "https://script.google.com/macros/s/AKfycby9sTsRxIVXscPY-fOs4ynBNXGyLDis0pbFAZE3r9doFrjqeefTnEVvew5jzIvf-02t/exec";
+
+// Función auxiliar para obtener la URL dinámica del cliente actual desde el navegador
+function obtenerUrlAPI() {
+    return localStorage.getItem("urlClienteAPI");
+}
 
 function formatoMoneda(valor) {
     return Number(valor).toLocaleString("es-CO", {
@@ -31,7 +36,7 @@ window.onload = async function () {
   }
 };
 
-// ================= ACTIVACIÓN CON LICENCIA =================
+// ================= ACTIVACIÓN CON LICENCIA MASTER =================
 async function activar() {
   const codigoInput = document.getElementById("codigo");
   const empleadoInput = document.getElementById("nombreEmpleado");
@@ -45,7 +50,8 @@ async function activar() {
   }
 
   try {
-    const respuesta = await fetch(`${urlAPI}?accion=activar&codigo=${codigo}&empleado=${encodeURIComponent(nombreEmpleado)}`, {
+    // Consulta al Master de Licencias
+    const respuesta = await fetch(`${urlMaster}?accion=activar&codigo=${codigo}&empleado=${encodeURIComponent(nombreEmpleado)}`, {
       redirect: 'follow'
     });
     
@@ -53,7 +59,11 @@ async function activar() {
 
     if (resultado.success) {
       localStorage.setItem("activado", "true");
-      localStorage.setItem("empleado", nombreEmpleado); // 👈 Guarda el nombre real del empleado
+      localStorage.setItem("empleado", nombreEmpleado);
+      
+      // 🔑 Guarda automáticamente la URL del Google Sheet específico de este cliente
+      localStorage.setItem("urlClienteAPI", resultado.urlCliente); 
+
       alert("¡Activado correctamente!");
       mostrarVista("loginVista");
     } else {
@@ -61,9 +71,10 @@ async function activar() {
     }
   } catch (error) {
     console.error(error);
-    alert("Error de conexión. Verifica tu internet o la URL.");
+    alert("Error de conexión. Verifica tu internet o la URL Master.");
   }
 }
+
 // ================= VER HISTORIAL DESDE LA NUBE =================
 async function verHistorial() {
     mostrarVista("historialVista");
@@ -72,6 +83,7 @@ async function verHistorial() {
     if (!lista) return;
 
     lista.innerHTML = "<p style='text-align:center;'>Cargando historial...</p>";
+    const urlAPI = obtenerUrlAPI();
 
     try {
         const respuesta = await fetch(`${urlAPI}?accion=obtenerHistorial`, { redirect: 'follow' });
@@ -88,12 +100,11 @@ async function verHistorial() {
             }
 
             resultado.historial.forEach(item => {
-                sumaTotalDia += item.subtotal; // Suma para el total del día
+                sumaTotalDia += item.subtotal; 
                 const numRemisionStr = String(item.numRemision).padStart(4, '0');
 
                 const div = document.createElement("div");
                 div.className = "historial-item";
-                // Diseño tipo tarjeta limpia y moderna
                 div.style.cssText = "background: white; margin-bottom: 12px; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid #2980b9;";
                 
                 div.innerHTML = `
@@ -111,7 +122,6 @@ async function verHistorial() {
                 lista.appendChild(div);
             });
 
-            // Muestra el total real del día formateado
             if (spanTotalDia) {
                 spanTotalDia.innerText = sumaTotalDia.toLocaleString();
             }
@@ -156,6 +166,7 @@ function mostrarVista(vista) {
 // ================= CARGAR INVENTARIO Y REMISIÓN DESDE LA NUBE =================
 async function cargarInventarioDesdeNube() {
     try {
+        const urlAPI = obtenerUrlAPI();
         const respuesta = await fetch(`${urlAPI}?accion=obtenerInventario`, { redirect: 'follow' });
         const resultado = await respuesta.json();
         if (resultado.success) {
@@ -169,30 +180,22 @@ async function cargarInventarioDesdeNube() {
 
 async function actualizarNumeroRemisionDesdeNube() {
     try {
+        const urlAPI = obtenerUrlAPI();
         const respuesta = await fetch(`${urlAPI}?accion=obtenerSiguienteRemision`, { redirect: 'follow' });
         const resultado = await respuesta.json();
         if (resultado.success) {
-            numeroRemision = resultado.siguiente; // Número real interno
+            numeroRemision = resultado.siguiente; 
             const elNum = document.getElementById("numeroRemision");
-            if (elNum) elNum.innerText = resultado.siguienteFormateado; // Muestra "0001", "0002", etc.
+            if (elNum) elNum.innerText = resultado.siguienteFormateado; 
         }
     } catch (e) {
         console.error("Error al obtener el número de remisión", e);
     }
 }
 
-// ================= CREAR PRODUCTO (EN NUBE) =================
 const btnGuardarProd = document.getElementById("guardarProducto");
 if (btnGuardarProd) {
   btnGuardarProd.addEventListener("click", async function () {
-    const nombre = document.getElementById("nombreProducto").value;
-    const precio = document.getElementById("precioProducto").value;
-
-    if (!nombre || !precio) {
-      alert("Completa los datos");
-      return;
-    }
-
     alert("Para mantener el inventario sincronizado, agrega o edita los productos directamente en tu Google Sheet.");
   });
 }
@@ -217,7 +220,6 @@ function mostrarCatalogo() {
   });
 }
 
-// ================= AGREGAR PRODUCTO A LA FACTURA =================
 function agregarProductoFactura(producto, cantidad = 1) {
     const cant = parseInt(cantidad) || 1;
 
@@ -256,7 +258,7 @@ async function irAFacturacion() {
     await actualizarNumeroRemisionDesdeNube();
     document.getElementById("fechaActual").innerText = new Date().toLocaleDateString("es-CO");
 }
-// ================= BUSCADOR INTELIGENTE EN TIEMPO REAL =================
+
 const inputBusq = document.getElementById("buscarProducto");
 if (inputBusq) {
   inputBusq.addEventListener("input", function () {
@@ -265,7 +267,6 @@ if (inputBusq) {
       if (!resultados) return;
 
       resultados.innerHTML = "";
-
       if (texto === "") return;
 
       productos.forEach(p => {
@@ -322,7 +323,6 @@ function actualizarFactura() {
     if (elTotal) elTotal.innerText = formatoMoneda(total);
 }
 
-// ================= GENERAR PDF Y DESCONTAR EN NUBE =================
 function generarPDF() {
     if (factura.length === 0) {
         alert("No hay productos en la remisión.");
@@ -338,7 +338,6 @@ function generarPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
-    // Encabezado
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
     doc.text("SOLMET", 14, 20);
@@ -520,6 +519,7 @@ async function compartirPDF() {
 // ================= SINCRONIZAR REMISIÓN CON GOOGLE SHEETS =================
 async function guardarVentaEnNube() {
   const empleadoActual = localStorage.getItem("empleado") || "Empleado";
+  const urlAPI = obtenerUrlAPI();
 
   for (let item of factura) {
     try {
@@ -540,14 +540,13 @@ async function guardarVentaEnNube() {
   actualizarFactura();
   limpiarFirma();
   
-  if (typeof limpiarFirma === "function") limpiarFirma();
   document.getElementById("clienteNombre").value = "";
   document.getElementById("clienteTelefono").value = "";
   document.getElementById("clienteDireccion").value = "";
   
   alert("Remisión guardada y stock descontado en la nube ✔");
   await cargarInventarioDesdeNube();
-  await actualizarNumeroRemisionDesdeNube(); // Actualiza al siguiente número para la próxima venta
+  await actualizarNumeroRemisionDesdeNube(); 
 }
 
 function cerrarSesion() {
@@ -597,4 +596,3 @@ function limpiarFirma() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 }
-
