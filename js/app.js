@@ -1,7 +1,7 @@
 let productos = []; // Ahora vendrá directamente de Google Sheets
 let factura = [];
 let total = 0;
-let numeroRemision = parseInt(localStorage.getItem("numeroRemision")) || 1;
+let numeroRemision = 1; // Se actualizará automáticamente desde la nube
 
 // ⚠️ URL DE TU API DE GOOGLE APPS SCRIPT
 const urlAPI = "https://script.google.com/macros/s/AKfycbzrgBvyI84vWnFILrinONVjCQzpLKXwfOWtDCoQYd3VSv84xIwD1knmdOrqg_C5c0rkKQ/exec";
@@ -89,6 +89,7 @@ async function verHistorial() {
 
             resultado.historial.forEach(item => {
                 sumaTotalDia += item.subtotal; // Suma para el total del día
+                const numRemisionStr = String(item.numRemision).padStart(4, '0');
 
                 const div = document.createElement("div");
                 div.className = "historial-item";
@@ -96,7 +97,10 @@ async function verHistorial() {
                 div.style.cssText = "background: white; margin-bottom: 12px; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid #2980b9;";
                 
                 div.innerHTML = `
-                    <p style="margin: 0 0 5px 0; font-size: 0.85rem; color: #666;"><b>Fecha:</b> ${new Date(item.fecha).toLocaleString("es-CO")}</p>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span style="font-size: 0.85rem; color: #2980b9; font-weight: bold;">Remisión #${numRemisionStr}</span>
+                        <span style="font-size: 0.85rem; color: #666;">${new Date(item.fecha).toLocaleString("es-CO")}</span>
+                    </div>
                     <p style="margin: 0 0 5px 0; font-size: 0.9rem;"><b>Empleado:</b> ${item.empleado}</p>
                     <p style="margin: 0 0 5px 0; font-size: 0.95rem; color: #2c3e50;"><b>Producto:</b> ${item.producto}</p>
                     <div style="display: flex; justify-content: space-between; font-size: 0.9rem; border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px;">
@@ -149,19 +153,28 @@ function mostrarVista(vista) {
     }
 }
 
-// ================= CARGAR INVENTARIO DESDE GOOGLE SHEETS =================
+// ================= CARGAR INVENTARIO Y REMISIÓN DESDE LA NUBE =================
+async function cargarInventarioDesdeNube() {
+    try {
+        const respuesta = await fetch(`${urlAPI}?accion=obtenerInventario`, { redirect: 'follow' });
+        const resultado = await respuesta.json();
+        if (resultado.success) {
+            productos = resultado.productos;
+            mostrarCatalogo();
+        }
+    } catch (e) {
+        console.error("Error al cargar inventario", e);
+    }
+}
+
 async function actualizarNumeroRemisionDesdeNube() {
     try {
         const respuesta = await fetch(`${urlAPI}?accion=obtenerSiguienteRemision`, { redirect: 'follow' });
         const resultado = await respuesta.json();
         if (resultado.success) {
-            numeroRemision = resultado.siguiente;
+            numeroRemision = resultado.siguiente; // Número real interno
             const elNum = document.getElementById("numeroRemision");
-            if (elNum) elNum.innerText = numeroRemision;
-
-            if (resultado.bloqueado) {
-                alert(`⚠️ ATENCIÓN: Has alcanzado el tope máximo de ${resultado.tope} remisiones permitidas.`);
-            }
+            if (elNum) elNum.innerText = resultado.siguienteFormateado; // Muestra "0001", "0002", etc.
         }
     } catch (e) {
         console.error("Error al obtener el número de remisión", e);
@@ -180,7 +193,6 @@ if (btnGuardarProd) {
       return;
     }
 
-    // Aquí puedes enlazar la acción en tu Apps Script para guardar nuevo producto si lo deseas
     alert("Para mantener el inventario sincronizado, agrega o edita los productos directamente en tu Google Sheet.");
   });
 }
@@ -320,8 +332,8 @@ function generarPDF() {
     const cliente = document.getElementById("clienteNombre").value || "Cliente";
     const telefono = document.getElementById("clienteTelefono").value || "";
     const direccion = document.getElementById("clienteDireccion").value || "";
-    const numero = numeroRemision;
-    const nombreArchivo = `Remision_${cliente}_${numero}.pdf`;
+    const numeroFormateado = String(numeroRemision).padStart(4, '0');
+    const nombreArchivo = `Remision_${cliente}_${numeroFormateado}.pdf`;
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
@@ -339,7 +351,7 @@ function generarPDF() {
 
     doc.rect(145, 14, 50, 18);
     doc.setFont("helvetica", "bold");
-    doc.text(`No. ${numero}`, 148, 21);
+    doc.text(`No. ${numeroFormateado}`, 148, 21);
     doc.setFont("helvetica", "normal");
     doc.text(`Fecha: ${new Date().toLocaleDateString("es-CO")}`, 148, 28);
 
@@ -410,8 +422,8 @@ async function compartirPDF() {
     const cliente = document.getElementById("clienteNombre").value || "Cliente";
     const telefono = document.getElementById("clienteTelefono").value || "";
     const direccion = document.getElementById("clienteDireccion").value || "";
-    const numero = numeroRemision;
-    const nombreArchivo = `Remision_${cliente}_${numero}.pdf`;
+    const numeroFormateado = String(numeroRemision).padStart(4, '0');
+    const nombreArchivo = `Remision_${cliente}_${numeroFormateado}.pdf`;
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
@@ -428,7 +440,7 @@ async function compartirPDF() {
 
     doc.rect(145, 14, 50, 18);
     doc.setFont("helvetica", "bold");
-    doc.text(`No. ${numero}`, 148, 21);
+    doc.text(`No. ${numeroFormateado}`, 148, 21);
     doc.setFont("helvetica", "normal");
     doc.text(`Fecha: ${new Date().toLocaleDateString("es-CO")}`, 148, 28);
 
@@ -493,7 +505,7 @@ async function compartirPDF() {
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
                 title: "Remisión",
-                text: `Remisión No. ${numero}`,
+                text: `Remisión No. ${numeroFormateado}`,
                 files: [file]
             });
             guardarVentaEnNube();
@@ -584,10 +596,5 @@ function limpiarFirma() {
     if (canvas && ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-}
-
-function actualizarNumeroRemision() {
-  const elNum = document.getElementById("numeroRemision");
-  if (elNum) elNum.innerText = numeroRemision;
 }
 
