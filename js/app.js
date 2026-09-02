@@ -150,24 +150,22 @@ function mostrarVista(vista) {
 }
 
 // ================= CARGAR INVENTARIO DESDE GOOGLE SHEETS =================
-async function cargarInventarioDesdeNube() {
-  try {
-    const respuesta = await fetch(`${urlAPI}?accion=obtenerInventario`, { redirect: 'follow' });
-    const resultado = await respuesta.json();
+async function actualizarNumeroRemisionDesdeNube() {
+    try {
+        const respuesta = await fetch(`${urlAPI}?accion=obtenerSiguienteRemision`, { redirect: 'follow' });
+        const resultado = await respuesta.json();
+        if (resultado.success) {
+            numeroRemision = resultado.siguiente;
+            const elNum = document.getElementById("numeroRemision");
+            if (elNum) elNum.innerText = numeroRemision;
 
-    if (resultado.success) {
-      // Mapeamos los campos de Google Sheets a tu app
-      productos = resultado.productos.map(p => ({
-        codigo_interno: p.codigo_interno,
-        nombre: p.nombre,
-        precio: p.precio || 0, // Si no tienes precio en sheets, por defecto 0
-        cantidad: p.cantidad_actual,
-        limite_alerta: p.limite_alerta
-      }));
+            if (resultado.bloqueado) {
+                alert(`⚠️ ATENCIÓN: Has alcanzado el tope máximo de ${resultado.tope} remisiones permitidas.`);
+            }
+        }
+    } catch (e) {
+        console.error("Error al obtener el número de remisión", e);
     }
-  } catch (error) {
-    console.error("No se pudo cargar el inventario de la nube", error);
-  }
 }
 
 // ================= CREAR PRODUCTO (EN NUBE) =================
@@ -241,12 +239,11 @@ function agregarProductoFactura(producto, cantidad = 1) {
     actualizarFactura();
 }
 
-function irAFacturacion() {
+async function irAFacturacion() {
     mostrarVista("facturacionVista");
-    actualizarNumeroRemision();
+    await actualizarNumeroRemisionDesdeNube();
     document.getElementById("fechaActual").innerText = new Date().toLocaleDateString("es-CO");
 }
-
 // ================= BUSCADOR INTELIGENTE EN TIEMPO REAL =================
 const inputBusq = document.getElementById("buscarProducto");
 if (inputBusq) {
@@ -512,10 +509,9 @@ async function compartirPDF() {
 async function guardarVentaEnNube() {
   const empleadoActual = localStorage.getItem("empleado") || "Empleado";
 
-  // Recorremos cada producto de la factura para descontarlo en la nube y registrar la remisión
   for (let item of factura) {
     try {
-      const url = `${urlAPI}?accion=registrarRemision&codigo_interno=${item.codigo_interno}&cantidad=${item.cantidad}&empleado=${encodeURIComponent(empleadoActual)}`;
+      const url = `${urlAPI}?accion=registrarRemision&codigo_interno=${item.codigo_interno}&cantidad=${item.cantidad}&empleado=${encodeURIComponent(empleadoActual)}&numRemision=${numeroRemision}`;
       
       const respuesta = await fetch(url, { redirect: 'follow' });
       const resultado = await respuesta.json();
@@ -528,9 +524,6 @@ async function guardarVentaEnNube() {
     }
   }
 
-  // Limpieza local tras guardar con éxito
-  numeroRemision++;
-  localStorage.setItem("numeroRemision", numeroRemision);
   factura = [];
   actualizarFactura();
   limpiarFirma();
@@ -541,7 +534,8 @@ async function guardarVentaEnNube() {
   document.getElementById("clienteDireccion").value = "";
   
   alert("Remisión guardada y stock descontado en la nube ✔");
-  await cargarInventarioDesdeNube(); // Refrescar stock local
+  await cargarInventarioDesdeNube();
+  await actualizarNumeroRemisionDesdeNube(); // Actualiza al siguiente número para la próxima venta
 }
 
 function cerrarSesion() {
