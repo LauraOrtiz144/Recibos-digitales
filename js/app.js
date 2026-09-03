@@ -526,22 +526,18 @@ async function guardarVentaEnNube() {
   const empleadoActual = localStorage.getItem("empleado") || "Empleado";
   const urlAPI = obtenerUrlAPI();
 
-  try {
-    const payload = {
-      accion: "registrarRemisionMasiva",
-      items: factura,
-      empleado: empleadoActual,
-      numRemision: numeroRemision
-    };
+  const payload = {
+    accion: "registrarRemisionMasiva",
+    items: factura,
+    empleado: empleadoActual,
+    numRemision: numeroRemision
+  };
 
-    const respuesta = await fetch(urlAPI, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8'
-      },
-      body: JSON.stringify(payload)
-    });
+  try {
+    // Usamos GET con encodeURIComponent para que los datos viajen seguros y no se pierdan al volver de WhatsApp
+    const url = `${urlAPI}?accion=registrarRemisionMasiva&datos=${encodeURIComponent(JSON.stringify(payload))}`;
     
+    const respuesta = await fetch(url, { redirect: 'follow' });
     const resultado = await respuesta.json();
 
     if (resultado.success) {
@@ -579,6 +575,7 @@ async function guardarVentaEnNube() {
 
   cargarInventarioDesdeNube();
 }
+
 /* ==========================================
    CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN
    ================================---------- */
