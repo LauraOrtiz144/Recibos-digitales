@@ -218,17 +218,21 @@ function mostrarCatalogo() {
    ================================---------- */
 function agregarProductoFactura(producto, cantidad = 1) {
     const cant = parseInt(cantidad) || 1;
-    // Acepta tanto 'cantidad' como 'cantidad_actual' para evitar errores
-    const stockDisponible = producto.cantidad !== undefined ? producto.cantidad : (producto.cantidad_actual !== undefined ? producto.cantidad_actual : 0);
+    const stockDisponible = Number(producto.cantidad_actual) || 0;
+
+    if (stockDisponible <= 0) {
+      alert(`❌ El producto "${producto.nombre}" está AGOTADO (Stock: 0). No se puede agregar.`);
+      return;
+    }
 
     if (cant > stockDisponible) {
-      alert(`⚠️ Stock insuficiente. Solo te quedan ${stockDisponible} unidades disponibles.`);
+      alert(`⚠️ Stock insuficiente. Solo quedan ${stockDisponible} unidades disponibles.`);
       return;
     }
 
     const precioNum = Number(producto.precio);
     const subtotal = precioNum * cant;
-    const index = factura.findIndex(item => item.nombre === producto.nombre);
+    const index = factura.findIndex(item => item.codigo_interno === producto.codigo_interno);
 
     if (index !== -1) {
         if ((factura[index].cantidad + cant) > stockDisponible) {
@@ -247,8 +251,9 @@ function agregarProductoFactura(producto, cantidad = 1) {
         });
     }
 
-    actualizarFactura();
+    actualizarFactura();   
 }
+
 async function irAFacturacion() {
     mostrarVista("facturacionVista");
     await actualizarNumeroRemisionDesdeNube();
@@ -515,21 +520,45 @@ async function compartirPDF() {
 }
 
 async function guardarVentaEnNube() {
+  if (factura.length === 0) {
+    alert("La factura está vacía.");
+    return;
+  }
+
   const empleadoActual = localStorage.getItem("empleado") || "Empleado";
   const urlAPI = obtenerUrlAPI();
 
-  for (let item of factura) {
-    try {
-      const url = `${urlAPI}?accion=registrarRemision&codigo_interno=${item.codigo_interno}&cantidad=${item.cantidad}&empleado=${encodeURIComponent(empleadoActual)}&numRemision=${numeroRemision}`;
-      const respuesta = await fetch(url, { redirect: 'follow' });
-      const resultado = await respuesta.json();
+  try {
+    // Petición única en bloque (Ultrarrápida)
+    const respuesta = await fetch(urlAPI, {
+      method: 'POST',
+      redirect: 'follow',
+      body: JSON.stringify({
+        accion: "registrarRemisionMasiva",
+        items: factura,
+        empleado: empleadoActual,
+        numRemision: numeroRemision
+      })
+    });
+    
+    const resultado = await respuesta.json();
 
-      if (resultado.success && resultado.alerta) {
-        alert(`⚠️ ¡ATENCIÓN! El producto "${resultado.producto}" ha llegado a un nivel crítico o está agotado. TE QUEDAN ${resultado.stockRestante} UNIDADES.`);
+    if (resultado.success) {
+      if (resultado.alertas && resultado.alertas.length > 0) {
+        let msg = "⚠️ ¡ATENCIÓN! Los siguientes productos han llegado a nivel crítico o están agotados:\n";
+        resultado.alertas.forEach(a => {
+          msg += `- ${a.producto}: Quedan ${a.stockRestante} unidades\n`;
+        });
+        alert(msg);
       }
-    } catch (err) {
-      console.error("Error al descontar stock de:", item.nombre, err);
+      alert("Remisión guardada y stock descontado ✔");
+    } else {
+      alert("Error al guardar: " + (resultado.message || "Desconocido"));
     }
+  } catch (err) {
+    console.error("Error al guardar remisión:", err);
+    alert("Error de conexión al guardar.");
+    return;
   }
 
   factura = [];
@@ -540,9 +569,15 @@ async function guardarVentaEnNube() {
   document.getElementById("clienteTelefono").value = "";
   document.getElementById("clienteDireccion").value = "";
   
-  alert("Remisión guardada y stock descontado en la nube ✔");
-  await cargarInventarioDesdeNube();
-  await actualizarNumeroRemisionDesdeNube(); 
+  // Actualización instantánea del número de remisión para la siguiente venta sin demoras
+  numeroRemision++;
+  const elemNum = document.getElementById("numRemisionTexto");
+  if (elemNum) {
+    elemNum.innerText = String(numeroRemision).padStart(4, '0');
+  }
+
+  // Refrescar inventario en segundo plano
+  cargarInventarioDesdeNube();
 }
 
 /* ==========================================
