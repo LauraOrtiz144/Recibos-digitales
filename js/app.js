@@ -1,31 +1,34 @@
 /* ==========================================
    ESTADO GLOBAL Y CONFIGURACIÓN
    ================================---------- */
-let productos = [];
+let productos = []; 
 let factura = [];
 let total = 0;
-let numeroRemision = 1;
+let numeroRemision = 1; 
 
 const urlMaster = "https://script.google.com/macros/s/AKfycby9sTsRxIVXscPY-fOs4ynBNXGyLDis0pbFAZE3r9doFrjqeefTnEVvew5jzIvf-02t/exec";
 
-const obtenerUrlAPI = () => localStorage.getItem("urlClienteAPI");
+function obtenerUrlAPI() {
+    return localStorage.getItem("urlClienteAPI");
+}
 
-const formatoMoneda = (valor) => Number(valor).toLocaleString("es-CO", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-});
+function formatoMoneda(valor) {
+    return Number(valor).toLocaleString("es-CO", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+}
 
 /* ==========================================
-   INICIALIZACIÓN DE LA APLICACIÓN
+   INICIALIZACIÓN ÚNICA Y OPTIMIZADA (CORREGIDO)
    ================================---------- */
 window.addEventListener("DOMContentLoaded", async () => {
   const urlCliente = localStorage.getItem("urlClienteAPI");
-  const activado = localStorage.getItem("activado");
   const sesionActiva = localStorage.getItem("sesionActiva");
   const nombreEmpleado = localStorage.getItem("empleado");
 
-  // 1. Verificación de licencia
-  if (!urlCliente || activado !== "true") {
+  // 1. Verificación de activación
+  if (!urlCliente) {
     mostrarVista("activacionVista");
     return;
   }
@@ -36,7 +39,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // 3. Sesión activa: Cargar entorno de trabajo
+  // 3. Entorno de trabajo activo
   mostrarVista("catalogoVista");
   
   const elNombreEmpresa = document.getElementById("empresaNombre");
@@ -44,17 +47,30 @@ window.addEventListener("DOMContentLoaded", async () => {
     elNombreEmpresa.innerText = `Empresa de ${nombreEmpleado || "Trabajador"}`;
   }
 
+  // 🚀 CARGA INSTANTÁNEA DESDE CACHÉ (Evita pantalla en blanco en iPhone)
+  const productosCache = localStorage.getItem("cache_productos");
+  if (productosCache) {
+    try {
+      productos = JSON.parse(productosCache);
+      mostrarCatalogo(); // El catálogo aparece al instante
+    } catch (e) {
+      console.error("Error al leer caché local", e);
+    }
+  }
+
+  // Sincronización silenciosa con la nube de fondo
   await cargarInventarioDesdeNube();
-  mostrarCatalogo();
-  configurarEventosDOM();
 });
 
 /* ==========================================
-   MÓDULO DE AUTENTICACIÓN Y ACTIVACIÓN
+   MÓDULO DE ACTIVACIÓN Y LOGIN
    ================================---------- */
 async function activar() {
-  const codigo = document.getElementById("codigo")?.value.trim() || "";
-  const nombreEmpleado = document.getElementById("nombreEmpleado")?.value.trim() || "Empleado";
+  const codigoInput = document.getElementById("codigo");
+  const empleadoInput = document.getElementById("nombreEmpleado");
+  
+  const codigo = codigoInput ? codigoInput.value.trim() : "";
+  const nombreEmpleado = empleadoInput ? empleadoInput.value.trim() : "Empleado";
 
   if (!codigo || !nombreEmpleado) {
     alert("Por favor ingresa el código de activación y tu nombre.");
@@ -65,13 +81,14 @@ async function activar() {
     const respuesta = await fetch(`${urlMaster}?accion=activar&codigo=${codigo}&empleado=${encodeURIComponent(nombreEmpleado)}`, {
       redirect: 'follow'
     });
+    
     const resultado = await respuesta.json();
 
     if (resultado.success) {
       localStorage.setItem("activado", "true");
-      localStorage.setItem("urlClienteAPI", resultado.urlCliente);  
+      localStorage.setItem("urlClienteAPI", resultado.urlCliente); 
       localStorage.setItem("pinJefe", resultado.pinJefe);      
-      localStorage.setItem("pinEmpleado", resultado.pinEmpleado);
+      localStorage.setItem("pinEmpleado", resultado.pinEmpleado); 
       
       alert("¡Activado correctamente!");
       mostrarVista("loginVista");
@@ -92,24 +109,27 @@ function login() {
   const pinEmpleado = localStorage.getItem("pinEmpleado") || "1234";
 
   if (pinIngresado === pinJefe) {
-    iniciarSesionExitosa("jefe", "Administrador");
+    localStorage.setItem("sesionActiva", "true");
+    localStorage.setItem("rol", "jefe");
+    localStorage.setItem("empleado", "Administrador");
+    iniciarEntornoTrabajo();
   } else if (pinIngresado === pinEmpleado) {
     if (!nombreInput) {
       alert("Por favor ingresa tu nombre de empleado para continuar.");
       return;
     }
-    iniciarSesionExitosa("empleado", nombreInput);
+    localStorage.setItem("sesionActiva", "true");
+    localStorage.setItem("rol", "empleado");
+    localStorage.setItem("empleado", nombreInput);
+    iniciarEntornoTrabajo();
   } else {
     alert("PIN incorrecto.");
   }
 }
 
-function iniciarSesionExitosa(rol, empleado) {
-  localStorage.setItem("sesionActiva", "true");
-  localStorage.setItem("rol", rol);
-  localStorage.setItem("empleado", empleado);
+function iniciarEntornoTrabajo() {
   mostrarVista("catalogoVista");
-  cargarInventarioDesdeNube().then(() => mostrarCatalogo());
+  cargarInventarioDesdeNube();
 }
 
 function cerrarSesion() {
@@ -118,10 +138,13 @@ function cerrarSesion() {
 }
 
 /* ==========================================
-   GESTIÓN DE VISTAS Y NAVEGACIÓN
+   GESTIÓN DE VISTAS
    ================================---------- */
 function mostrarVista(vista) {
-    document.querySelectorAll(".vista").forEach(v => v.style.display = "none");
+    document.querySelectorAll(".vista").forEach(v => {
+        v.style.display = "none";
+    });
+
     const elVista = document.getElementById(vista);
     if (elVista) elVista.style.display = "block";
 
@@ -132,24 +155,31 @@ function mostrarVista(vista) {
 }
 
 /* ==========================================
-   INVENTARIO Y NUBE
+   INVENTARIO Y NUBE (CON CACHÉ)
    ================================---------- */
 async function cargarInventarioDesdeNube() {
     try {
-        const respuesta = await fetch(`${obtenerUrlAPI()}?accion=obtenerInventario`, { redirect: 'follow' });
+        const urlAPI = obtenerUrlAPI();
+        if (!urlAPI) return;
+
+        const respuesta = await fetch(`${urlAPI}?accion=obtenerInventario`, { redirect: 'follow' });
         const resultado = await respuesta.json();
+        
         if (resultado.success) {
             productos = resultado.productos;
+            // Guardamos una copia en el teléfono para cargas futuras instantáneas
+            localStorage.setItem("cache_productos", JSON.stringify(productos));
             mostrarCatalogo();
         }
     } catch (e) {
-        console.error("Error al cargar inventario", e);
+        console.error("Error al cargar inventario de la nube", e);
     }
 }
 
 async function actualizarNumeroRemisionDesdeNube() {
     try {
-        const respuesta = await fetch(`${obtenerUrlAPI()}?accion=obtenerSiguienteRemision`, { redirect: 'follow' });
+        const urlAPI = obtenerUrlAPI();
+        const respuesta = await fetch(`${urlAPI}?accion=obtenerSiguienteRemision`, { redirect: 'follow' });
         const resultado = await respuesta.json();
         if (resultado.success) {
             numeroRemision = resultado.siguiente; 
@@ -169,19 +199,22 @@ function mostrarCatalogo() {
   productos.forEach(p => {
     const div = document.createElement("div");
     div.className = "producto-card";
+
     div.innerHTML = `
       <h3>${p.nombre}</h3>
       <p>Stock: ${p.cantidad}</p>
       <p class="precio">$${formatoMoneda(p.precio)}</p>
-      <button>Agregar</button>
+      <button class="btnAgregarCat">Agregar</button>
     `;
-    div.querySelector("button").onclick = () => agregarProductoFactura(p);
+
+    // Asignación segura de eventos (evita errores con comillas en nombres)
+    div.querySelector(".btnAgregarCat").onclick = () => agregarProductoFactura(p);
     contenedor.appendChild(div);
   });
 }
 
 /* ==========================================
-   FACTURACIÓN Y CARRITO
+   CARRITO Y FACTURACIÓN
    ================================---------- */
 function agregarProductoFactura(producto, cantidad = 1) {
     const cant = parseInt(cantidad) || 1;
@@ -192,6 +225,7 @@ function agregarProductoFactura(producto, cantidad = 1) {
     }
 
     const precioNum = Number(producto.precio);
+    const subtotal = precioNum * cant;
     const index = factura.findIndex(item => item.nombre === producto.nombre);
 
     if (index !== -1) {
@@ -207,9 +241,10 @@ function agregarProductoFactura(producto, cantidad = 1) {
             nombre: producto.nombre,
             precio: precioNum,
             cantidad: cant,
-            subtotal: precioNum * cant
+            subtotal: subtotal
         });
     }
+
     actualizarFactura();
 }
 
@@ -243,6 +278,54 @@ function actualizarFactura() {
 }
 
 /* ==========================================
+   BUSCADOR EN VIVO
+   ================================---------- */
+const inputBusq = document.getElementById("buscarProducto");
+if (inputBusq) {
+  inputBusq.addEventListener("input", function () {
+      const texto = this.value.toLowerCase().trim();
+      const resultados = document.getElementById("resultados");
+      if (!resultados) return;
+
+      resultados.innerHTML = "";
+      if (texto === "") return;
+
+      productos.forEach(p => {
+          if (p.nombre.toLowerCase().includes(texto)) {
+              const div = document.createElement("div");
+              div.className = "resultadoProducto";
+              div.innerHTML = `
+                  <div class="resultadoInfo">
+                      <h4>${p.nombre}</h4>
+                      <p>Stock: ${p.cantidad} | $${formatoMoneda(p.precio)}</p>
+                  </div>
+                  <div class="accionesProducto">
+                      <input type="number" class="cantidadProducto" value="1" min="1" max="${p.cantidad}">
+                      <button class="btnAgregar">Agregar</button>
+                  </div>
+              `;
+
+              const cantidadInput = div.querySelector(".cantidadProducto");
+              div.querySelector(".btnAgregar").onclick = () => {
+                  agregarProductoFactura(p, cantidadInput.value);
+                  inputBusq.value = "";
+                  resultados.innerHTML = "";
+              };
+
+              resultados.appendChild(div);
+          }
+      });
+  });
+}
+
+const btnGuardarProd = document.getElementById("guardarProducto");
+if (btnGuardarProd) {
+  btnGuardarProd.addEventListener("click", () => {
+    alert("Para mantener el inventario sincronizado, agrega o edita los productos directamente en tu Google Sheet.");
+  });
+}
+
+/* ==========================================
    HISTORIAL DE VENTAS
    ================================---------- */
 async function verHistorial() {
@@ -252,9 +335,10 @@ async function verHistorial() {
     if (!lista) return;
 
     lista.innerHTML = "<p style='text-align:center;'>Cargando historial...</p>";
+    const urlAPI = obtenerUrlAPI();
 
     try {
-        const respuesta = await fetch(`${obtenerUrlAPI()}?accion=obtenerHistorial`, { redirect: 'follow' });
+        const respuesta = await fetch(`${urlAPI}?accion=obtenerHistorial`, { redirect: 'follow' });
         const resultado = await respuesta.json();
 
         if (resultado.success) {
@@ -309,7 +393,7 @@ async function verHistorial() {
 }
 
 /* ==========================================
-   GENERADOR PDF (DRY: CÓDIGO CENTRALIZADO)
+   GENERADOR PDF Y COMPARTIR
    ================================---------- */
 function prepararDocumentoPDF() {
     const cliente = document.getElementById("clienteNombre").value || "Cliente";
@@ -431,10 +515,11 @@ async function compartirPDF() {
 
 async function guardarVentaEnNube() {
   const empleadoActual = localStorage.getItem("empleado") || "Empleado";
+  const urlAPI = obtenerUrlAPI();
 
   for (let item of factura) {
     try {
-      const url = `${obtenerUrlAPI()}?accion=registrarRemision&codigo_interno=${item.codigo_interno}&cantidad=${item.cantidad}&empleado=${encodeURIComponent(empleadoActual)}&numRemision=${numeroRemision}`;
+      const url = `${urlAPI}?accion=registrarRemision&codigo_interno=${item.codigo_interno}&cantidad=${item.cantidad}&empleado=${encodeURIComponent(empleadoActual)}&numRemision=${numeroRemision}`;
       const respuesta = await fetch(url, { redirect: 'follow' });
       const resultado = await respuesta.json();
 
@@ -460,7 +545,7 @@ async function guardarVentaEnNube() {
 }
 
 /* ==========================================
-   CONFIGURACIÓN DE FIRMA Y EVENTOS UI
+   CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN
    ================================---------- */
 const canvas = document.getElementById("firmaCanvas");
 let ctx = canvas ? canvas.getContext("2d") : null;
@@ -502,51 +587,3 @@ function limpiarFirma() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 }
-
-function configurarEventosDOM() {
-    const btnGuardarProd = document.getElementById("guardarProducto");
-    if (btnGuardarProd) {
-      btnGuardarProd.addEventListener("click", () => {
-        alert("Para mantener el inventario sincronizado, agrega o edita los productos directamente en tu Google Sheet.");
-      });
-    }
-
-    const inputBusq = document.getElementById("buscarProducto");
-    if (inputBusq) {
-      inputBusq.addEventListener("input", function () {
-          const texto = this.value.toLowerCase().trim();
-          const resultados = document.getElementById("resultados");
-          if (!resultados) return;
-
-          resultados.innerHTML = "";
-          if (texto === "") return;
-
-          productos.forEach(p => {
-              if (p.nombre.toLowerCase().includes(texto)) {
-                  const div = document.createElement("div");
-                  div.className = "resultadoProducto";
-                  div.innerHTML = `
-                      <div class="resultadoInfo">
-                          <h4>${p.nombre}</h4>
-                          <p>Stock: ${p.cantidad} | $${formatoMoneda(p.precio)}</p>
-                      </div>
-                      <div class="accionesProducto">
-                          <input type="number" class="cantidadProducto" value="1" min="1" max="${p.cantidad}">
-                          <button class="btnAgregar">Agregar</button>
-                      </div>
-                  `;
-
-                  const cantidadInput = div.querySelector(".cantidadProducto");
-                  div.querySelector(".btnAgregar").onclick = () => {
-                      agregarProductoFactura(p, cantidadInput.value);
-                      inputBusq.value = "";
-                      resultados.innerHTML = "";
-                  };
-
-                  resultados.appendChild(div);
-              }
-          });
-      });
-    }
-}
-
