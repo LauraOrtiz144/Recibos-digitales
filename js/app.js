@@ -202,17 +202,15 @@ function mostrarCatalogo() {
 
     div.innerHTML = `
       <h3>${p.nombre}</h3>
-      <p>Stock: ${p.cantidad}</p>
+      <p>Stock: ${p.cantidad_actual}</p>
       <p class="precio">$${formatoMoneda(p.precio)}</p>
       <button class="btnAgregarCat">Agregar</button>
     `;
 
-    // Asignación segura de eventos (evita errores con comillas en nombres)
     div.querySelector(".btnAgregarCat").onclick = () => agregarProductoFactura(p);
     contenedor.appendChild(div);
   });
 }
-
 /* ==========================================
    CARRITO Y FACTURACIÓN
    ================================---------- */
@@ -303,10 +301,10 @@ if (inputBusq) {
               div.innerHTML = `
                   <div class="resultadoInfo">
                       <h4>${p.nombre}</h4>
-                      <p>Stock: ${p.cantidad} | $${formatoMoneda(p.precio)}</p>
+                      <p>Stock: ${p.cantidad_actual} | $${formatoMoneda(p.precio)}</p>
                   </div>
                   <div class="accionesProducto">
-                      <input type="number" class="cantidadProducto" value="1" min="1" max="${p.cantidad}">
+                      <input type="number" class="cantidadProducto" value="1" min="1" max="${p.cantidad_actual}">
                       <button class="btnAgregar">Agregar</button>
                   </div>
               `;
@@ -536,9 +534,14 @@ async function guardarVentaEnNube() {
       numRemision: numeroRemision
     };
 
-    const url = `${urlAPI}?accion=registrarRemisionMasiva&datos=${encodeURIComponent(JSON.stringify(payload))}`;
+    const respuesta = await fetch(urlAPI, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload)
+    });
     
-    const respuesta = await fetch(url, { redirect: 'follow' });
     const resultado = await respuesta.json();
 
     if (resultado.success) {
