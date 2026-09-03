@@ -218,9 +218,11 @@ function mostrarCatalogo() {
    ================================---------- */
 function agregarProductoFactura(producto, cantidad = 1) {
     const cant = parseInt(cantidad) || 1;
+    // Acepta tanto 'cantidad' como 'cantidad_actual' para evitar errores
+    const stockDisponible = producto.cantidad !== undefined ? producto.cantidad : (producto.cantidad_actual !== undefined ? producto.cantidad_actual : 0);
 
-    if (cant > producto.cantidad) {
-      alert(`Stock insuficiente. Solo quedan ${producto.cantidad} unidades disponibles.`);
+    if (cant > stockDisponible) {
+      alert(`⚠️ Stock insuficiente. Solo te quedan ${stockDisponible} unidades disponibles.`);
       return;
     }
 
@@ -229,8 +231,8 @@ function agregarProductoFactura(producto, cantidad = 1) {
     const index = factura.findIndex(item => item.nombre === producto.nombre);
 
     if (index !== -1) {
-        if ((factura[index].cantidad + cant) > producto.cantidad) {
-          alert("No puedes agregar más de las unidades disponibles en inventario.");
+        if ((factura[index].cantidad + cant) > stockDisponible) {
+          alert(`⚠️ No puedes agregar más de las unidades disponibles. Stock máximo: ${stockDisponible}`);
           return;
         }
         factura[index].cantidad += cant;
@@ -247,7 +249,6 @@ function agregarProductoFactura(producto, cantidad = 1) {
 
     actualizarFactura();
 }
-
 async function irAFacturacion() {
     mostrarVista("facturacionVista");
     await actualizarNumeroRemisionDesdeNube();
@@ -524,7 +525,7 @@ async function guardarVentaEnNube() {
       const resultado = await respuesta.json();
 
       if (resultado.success && resultado.alerta) {
-        alert(`⚠️ ¡ATENCIÓN! El producto "${resultado.producto}" ha llegado a un nivel crítico de stock. Quedan: ${resultado.stockRestante}`);
+        alert(`⚠️ ¡ATENCIÓN! El producto "${resultado.producto}" ha llegado a un nivel crítico o está agotado. TE QUEDAN ${resultado.stockRestante} UNIDADES.`);
       }
     } catch (err) {
       console.error("Error al descontar stock de:", item.nombre, err);
