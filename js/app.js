@@ -529,18 +529,16 @@ async function guardarVentaEnNube() {
   const urlAPI = obtenerUrlAPI();
 
   try {
-    // Petición única en bloque (Ultrarrápida)
-    const respuesta = await fetch(urlAPI, {
-      method: 'POST',
-      redirect: 'follow',
-      body: JSON.stringify({
-        accion: "registrarRemisionMasiva",
-        items: factura,
-        empleado: empleadoActual,
-        numRemision: numeroRemision
-      })
-    });
+    const payload = {
+      accion: "registrarRemisionMasiva",
+      items: factura,
+      empleado: empleadoActual,
+      numRemision: numeroRemision
+    };
+
+    const url = `${urlAPI}?accion=registrarRemisionMasiva&datos=${encodeURIComponent(JSON.stringify(payload))}`;
     
+    const respuesta = await fetch(url, { redirect: 'follow' });
     const resultado = await respuesta.json();
 
     if (resultado.success) {
@@ -554,6 +552,7 @@ async function guardarVentaEnNube() {
       alert("Remisión guardada y stock descontado ✔");
     } else {
       alert("Error al guardar: " + (resultado.message || "Desconocido"));
+      return;
     }
   } catch (err) {
     console.error("Error al guardar remisión:", err);
@@ -569,17 +568,14 @@ async function guardarVentaEnNube() {
   document.getElementById("clienteTelefono").value = "";
   document.getElementById("clienteDireccion").value = "";
   
-  // Actualización instantánea del número de remisión para la siguiente venta sin demoras
   numeroRemision++;
   const elemNum = document.getElementById("numRemisionTexto");
   if (elemNum) {
     elemNum.innerText = String(numeroRemision).padStart(4, '0');
   }
 
-  // Refrescar inventario en segundo plano
   cargarInventarioDesdeNube();
 }
-
 /* ==========================================
    CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN
    ================================---------- */
