@@ -533,18 +533,21 @@ function guardarVentaEnNube() {
     cantidad: item.cantidad
   }));
 
+  // Capturamos únicamente el nombre del cliente o empresa
+  const nombreCliente = document.getElementById("clienteNombre") ? document.getElementById("clienteNombre").value.trim() : "";
+
   const payload = {
     accion: "registrarRemisionMasiva",
     items: itemsMinimos,
     empleado: empleadoActual,
-    numRemision: numeroRemision
+    numRemision: numeroRemision,
+    cliente: nombreCliente || "Mostrador / Genérico" // Si está vacío, le asigna un valor por defecto
   };
 
-  const nombreCliente = document.getElementById("clienteNombre") ? document.getElementById("clienteNombre").value : "";
-  const telCliente = document.getElementById("clienteTelefono") ? document.getElementById("clienteTelefono").value : "";
-  const dirCliente = document.getElementById("clienteDireccion") ? document.getElementById("clienteDireccion").value : "";
-
-  guardarClienteFrecuente(nombreCliente, telCliente, dirCliente);
+  // Guardamos en el autocompletado local (opcional)
+  if (nombreCliente) {
+    guardarClienteFrecuente(nombreCliente, "", "");
+  }
 
   factura = [];
   actualizarFactura();
@@ -565,6 +568,7 @@ function guardarVentaEnNube() {
   if (elemNum1) elemNum1.innerText = formatoNum;
   if (elemNum2) elemNum2.innerText = formatoNum;
 
+  // Envío a la nube
   const url = `${urlAPI}?accion=registrarRemisionMasiva&datos=${encodeURIComponent(JSON.stringify(payload))}`;
   fetch(url, { mode: 'no-cors' }).catch(err => {
     console.log("Sincronización en segundo plano");
@@ -574,7 +578,6 @@ function guardarVentaEnNube() {
     cargarInventarioDesdeNube();
   }, 1500);
 }
-
 /* ==========================================
    CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN
    ================================---------- */
