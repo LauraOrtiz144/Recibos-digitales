@@ -2,22 +2,17 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Remisiones</title>
+  <title>Remisiones - SOLMET</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 
-  <!-- ========================================== -->
-  <!-- CONFIGURACIÓN PWA (ANDROID Y IOS)          -->
-  <!-- ========================================== -->
-
-  <!-- 1. Configuración General y Android (Chrome) -->
+  <!-- CONFIGURACIÓN PWA (ANDROID Y IOS) -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#2980b9">
+  <meta name="theme-color" content="#2563eb">
   <link rel="icon" type="image/png" href="icons/icon-192.png">
 
-  <!-- 2. Configuración específica para iOS (Apple / Safari) -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SOLMET">
@@ -26,124 +21,116 @@
 </head>
 <body>
 
-<div class="container">
+<div class="app-container">
 
   <!-- ACTIVACION -->
   <div id="activacionVista" class="vista">
-    <h2>Activar sistema</h2>
-    <input type="text" id="codigo" placeholder="Código de activación">
-    <input type="text" id="nombreEmpleado" placeholder="Tu nombre o el del empleado">
-    <button onclick="activar()">Activar</button>
+    <div class="auth-card">
+      <h2>Activar sistema</h2>
+      <p class="subtitle">Ingresa los datos proporcionados por tu administrador.</p>
+      <input type="text" id="codigo" placeholder="Código de activación">
+      <input type="text" id="nombreEmpleado" placeholder="Tu nombre o el del empleado">
+      <button class="btn-primary" onclick="activar()">Activar</button>
+    </div>
   </div>
 
   <!-- LOGIN -->
   <div id="loginVista" class="vista" style="display:none;">
-    <h2>Iniciar sesión</h2>
-    <input type="text" id="nombreLogin" placeholder="Tu nombre de empleado">
-    <input type="password" id="pin" placeholder="PIN">
-    <button onclick="login()">Entrar</button>
+    <div class="auth-card">
+      <h2>Iniciar sesión</h2>
+      <p class="subtitle">Accede a tu entorno de trabajo</p>
+      <input type="text" id="nombreLogin" placeholder="Tu nombre de empleado">
+      <input type="password" id="pin" placeholder="PIN de acceso">
+      <button class="btn-primary" onclick="login()">Entrar</button>
+    </div>
   </div>
   
   <!-- CATALOGO -->
   <div id="catalogoVista" class="vista" style="display:none;">
     
-    <h2 id="empresaNombre">Mi Empresa</h2>
+    <!-- ENCABEZADO CON LOGO Y NOMBRE -->
+    <header class="app-header">
+      <div class="brand-info">
+        <div class="brand-logo">🛒</div>
+        <h1 id="empresaNombre">Empresa de Juan</h1>
+      </div>
+    </header>
 
-    <button class="btn-secundario" onclick="irAFacturacion()">Crear remisión</button>
-    <button onclick="verHistorial()">Ver historial</button>
+    <div class="main-actions">
+      <button class="btn-primary" onclick="irAFacturacion()">Crear remisión</button>
+      <button class="btn-secundario" onclick="verHistorial()">Ver historial</button>
+    </div>
 
-    <h3>Agregar Producto</h3>
-    <input type="text" id="nombreProducto" placeholder="Nombre">
-    <input type="number" id="precioProducto" placeholder="Precio">
-    <button id="guardarProducto">Guardar</button>
-
-    <h3>Catálogo</h3>
+    <h3 class="section-title">Catálogo de productos</h3>
     <div id="catalogo" class="catalogo-grid"></div>
 
-    <button onclick="cerrarSesion()">Cerrar sesión</button>
+    <div class="footer-actions">
+      <button class="btn-danger" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
   </div>
 
   <!-- REMISION -->
   <div id="facturacionVista" class="vista" style="display:none;">
 
-    <!-- 🔍 BUSCADOR FUERA DEL PDF -->
-    <input type="text" id="buscarProducto" placeholder="Buscar producto">
-    <div id="listaSugerencias" class="sugerencias-box"></div>
-    <div id="resultados"></div>
+    <!-- BUSCADOR FUERA DEL PDF -->
+    <div class="buscador-container">
+      <input type="text" id="buscarProducto" placeholder="🔍 Buscar producto en el inventario...">
+      <div id="listaSugerencias" class="sugerencias-box"></div>
+      <div id="resultados"></div>
+    </div>
 
-    <!-- 📄 PDF LIMPIO -->
+    <!-- PDF LIMPIO -->
     <div class="factura-pro" id="facturaPDF">
 
-     <div class="encabezado-remision">
+      <div class="encabezado-remision">
+        <div class="empresa">
+            <h2>SOLMET</h2>
+            <p>NIT: 900.000.000-0</p>
+            <p>Tel: 302 423 8890</p>
+            <p>Bogotá D.C.</p>
+        </div>
 
-    <div class="empresa">
-        <h2>SOLMET</h2>
-        <p>NIT:&nbsp;900.000.000-0</p>
-        <p>Tel: 302&nbsp;423&nbsp;8890</p>
-        <p>Bogotá D.C.</p>
-    </div>
-
-    <div class="datos-remision">
-
-        <h3>REMISIÓN</h3>
-
-        <table class="tabla-datos">
-            <tr>
-                <td><b>No.</b></td>
-                <td><span id="numeroRemision">001</span></td>
-            </tr>
-
-            <tr>
-                <td><b>Fecha</b></td>
-                <td><span id="fechaActual"></span></td>
-            </tr>
-
-        </table>
-
-    </div>
-
-</div>
+        <div class="datos-remision">
+            <h3>REMISIÓN</h3>
+            <table class="tabla-datos">
+                <tr>
+                    <td><b>No.</b></td>
+                    <td><span id="numeroRemision">001</span></td>
+                </tr>
+                <tr>
+                    <td><b>Fecha</b></td>
+                    <td><span id="fechaActual"></span></td>
+                </tr>
+            </table>
+        </div>
+      </div>
         
       <div class="datosCliente">
-
-    <table class="tablaCliente">
-
-        <tr>
-            <td width="130"><strong>Cliente</strong></td>
-
-            <td>
-                <input id="clienteNombre" placeholder="Nombre del cliente">
-                <datalist id="clientesList"></datalist>
-                <span id="pdfCliente" class="textoPDF"></span>
-            </td>
-
-        </tr>
-
-        <tr>
-
-            <td><strong>Teléfono</strong></td>
-
-            <td>
-                <input id="clienteTelefono" placeholder="Teléfono">
-                <span id="pdfTelefono" class="textoPDF"></span>
-            </td>
-
-        </tr>
-
-        <tr>
-
-            <td><strong>Dirección</strong></td>
-
-            <td>
-                 <input id="clienteDireccion" placeholder="Dirección">
-                 <span id="pdfDireccion" class="textoPDF"></span>
-            </td>
-
-        </tr>
-
-    </table>
-
-</div>
+        <table class="tablaCliente">
+            <tr>
+                <td width="100"><strong>Cliente</strong></td>
+                <td>
+                    <input id="clienteNombre" placeholder="Nombre del cliente o empresa" list="clientesList">
+                    <datalist id="clientesList"></datalist>
+                    <span id="pdfCliente" class="textoPDF"></span>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Teléfono</strong></td>
+                <td>
+                    <input id="clienteTelefono" placeholder="Teléfono de contacto">
+                    <span id="pdfTelefono" class="textoPDF"></span>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Dirección</strong></td>
+                <td>
+                   <input id="clienteDireccion" placeholder="Dirección de entrega">
+                   <span id="pdfDireccion" class="textoPDF"></span>
+                </td>
+            </tr>
+        </table>
+      </div>
 
       <table class="tablaRemision" style="table-layout:fixed; width:100%;">
         <thead>
@@ -161,82 +148,56 @@
         TOTAL: $<span id="total">0</span>
       </div>
 
-      <!-- 🔥 FIRMA DENTRO DEL PDF -->
+      <!-- FIRMA DENTRO DEL PDF -->
       <div class="firmas">
-
-    <div class="firmaBox">
-
-        <div class="firmaVendedor">
-            Firma del vendedor
+        <div class="firmaBox">
+            <div class="firmaVendedor">Firma del vendedor</div>
+            <hr>
+            <p>Entregó</p>
         </div>
-
-        <hr>
-
-        <p>Entregó</p>
-
-    </div>
-
-    <div class="firmaBox">
-
-       <canvas id="firmaCanvas"
-        width="350"
-        height="120">
-      </canvas>
-
-        <hr>
-
-        <p>Recibió</p>
-
-    </div>
-
-</div>
-
-</div>
+        <div class="firmaBox">
+           <canvas id="firmaCanvas" width="300" height="100"></canvas>
+            <hr>
+            <p>Recibió</p>
+        </div>
+      </div>
 
     </div>
      
-    <div id="botonesAccion">
-      <button onclick="compartirPDF()">Enviar por WhatsApp</button>
-      <button onclick="mostrarVista('catalogoVista')">Volver</button>
-      <button onclick="limpiarFirma()">Limpiar firma</button>
+    <div id="botonesAccion" class="botones-facturacion">
+      <button class="btn-success" onclick="compartirPDF()">Enviar por WhatsApp</button>
+      <button class="btn-primary" onclick="mostrarVista('catalogoVista')">Volver</button>
+      <button class="btn-secundario" onclick="limpiarFirma()">Limpiar firma</button>
     </div>
 
   </div>
 
   <!-- HISTORIAL -->
   <div id="historialVista" class="vista" style="display:none;">
-
    <h2>Historial de ventas</h2>
-
    <div id="listaHistorial"></div>
-
    <h3>Total del día: $<span id="totalDia">0</span></h3>
 
-   <button onclick="descargarReporteDia()">Descargar reporte PDF</button>
-   <button onclick="mostrarVista('catalogoVista')">Volver</button>
-
-  </div> 
+   <div class="historial-acciones">
+     <button class="btn-secundario" onclick="mostrarVista('catalogoVista')">Volver</button>
+   </div>
+  </div>  
 
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script> 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
 <script src="js/app.js"></script>
 
-<!-- ========================================== -->
-  <!-- REGISTRO DEL SERVICE WORKER (Offline)      -->
-  <!-- ========================================== -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('Service Worker registrado correctamente:', reg.scope))
-          .catch(err => console.error('Falló el registro del Service Worker:', err));
-      });
-    }
-  </script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('Service Worker registrado:', reg.scope))
+        .catch(err => console.error('Falló Service Worker:', err));
+    });
+  }
+</script>
 </body>
 </html>
-
