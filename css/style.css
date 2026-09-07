@@ -732,3 +732,10 @@ button:hover {
 .sugerencia-item:hover {
     background-color: #f1f1f1;
 }
+
+.logo-chico {
+    max-height: 40px !important;
+    width: auto !important;
+    object-fit: contain !important;
+    display: block;
+}
