@@ -51,7 +51,7 @@
     <!-- ENCABEZADO CON LOGO Y NOMBRE -->
     <header class="app-header">
       <div class="brand-logo-full">
-        <img src="icons/FORTIZ.jpeg" alt="Logo Empresa" 
+        <img src="icons/FORTIZ.jpeg" alt="Logo Empresa">
       </div>
     </header>
 
@@ -76,6 +76,14 @@
       <input type="text" id="buscarProducto" placeholder="🔍 Buscar producto en el inventario...">
       <div id="listaSugerencias" class="sugerencias-box"></div>
       <div id="resultados"></div>
+    </div>
+
+    <!-- CONTROL DINÁMICO PARA MOSTRAR/OCULTAR EL NIT EN ESTA REMISIÓN -->
+    <div style="margin: 10px 0; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+      <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; color: #334155; font-weight: 500;">
+        <input type="checkbox" id="checkNitEmpresa" checked onchange="document.querySelector('.nit-empresa').style.display = this.checked ? 'block' : 'none'" style="width: auto; margin: 0;">
+        Incluir NIT de la empresa en este documento
+      </label>
     </div>
 
     <!-- PDF LIMPIO -->
@@ -209,5 +217,7 @@
     });
   }
 </script>
+
+  
 </body>
 </html>
