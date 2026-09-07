@@ -538,7 +538,12 @@ function guardarVentaEnNube() {
     numRemision: numeroRemision
   };
 
-  // 1. LIMPIAR LA PANTALLA AL INSTANTE (Sin esperas, sin alertas bloqueantes)
+  const nombreCliente = document.getElementById("clienteNombre") ? document.getElementById("clienteNombre").value : "";
+  const telCliente = document.getElementById("clienteTelefono") ? document.getElementById("clienteTelefono").value : "";
+  const dirCliente = document.getElementById("clienteDireccion") ? document.getElementById("clienteDireccion").value : "";
+
+  guardarClienteFrecuente(nombreCliente, telCliente, dirCliente);
+
   factura = [];
   actualizarFactura();
   limpiarFirma();
@@ -551,18 +556,18 @@ function guardarVentaEnNube() {
   if (inputDir) inputDir.value = "";
   
   numeroRemision++;
-  const elemNum = document.getElementById("numRemisionTexto");
-  if (elemNum) {
-    elemNum.innerText = String(numeroRemision).padStart(4, '0');
-  }
+  const formatoNum = String(numeroRemision).padStart(4, '0');
+  
+  const elemNum1 = document.getElementById("numRemisionTexto");
+  const elemNum2 = document.getElementById("numeroRemision");
+  if (elemNum1) elemNum1.innerText = formatoNum;
+  if (elemNum2) elemNum2.innerText = formatoNum;
 
-  // 2. ENVIAR A GOOGLE SHEETS EN SEGUNDO PLANO (Viaja solo y sin congelar tu celular)
   const url = `${urlAPI}?accion=registrarRemisionMasiva&datos=${encodeURIComponent(JSON.stringify(payload))}`;
   fetch(url, { mode: 'no-cors' }).catch(err => {
     console.log("Sincronización en segundo plano");
   });
 
-  // 3. Refrescar el inventario en silencio después de un momento
   setTimeout(() => {
     cargarInventarioDesdeNube();
   }, 1500);
@@ -609,4 +614,71 @@ function limpiarFirma() {
     if (canvas && ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
+}
+// --- AUTOCOMPLETADO DE CLIENTES FRECUENTES ---
+
+// 1. Cargar las opciones en el datalist al abrir la app o cargar la página
+document.addEventListener("DOMContentLoaded", () => {
+  actualizarDatalistClientes();
+  
+  // Escuchar cuando el usuario escriba o seleccione un cliente por nombre
+  const inputNombre = document.getElementById("clienteNombre");
+  if (inputNombre) {
+    inputNombre.addEventListener("input", function() {
+      autoCompletarCliente(this.value);
+    });
+  }
+});
+
+function actualizarDatalistClientes() {
+  const datalist = document.getElementById("clientesList");
+  if (!datalist) return;
+  
+  const clientes = JSON.parse(localStorage.getItem('clientesFrecuentes') || '[]');
+  datalist.innerHTML = "";
+  
+  clientes.forEach(c => {
+    const option = document.createElement("option");
+    option.value = c.nombre; // Lo que se muestra y autocompleta
+    datalist.appendChild(option);
+  });
+}
+
+function autoCompletarCliente(nombreIngresado) {
+  if (!nombreIngresado) return;
+  const clientes = JSON.parse(localStorage.getItem('clientesFrecuentes') || '[]');
+  
+  // Buscar si el cliente ya existe en la memoria
+  const clienteEncontrado = clientes.find(c => c.nombre.toLowerCase() === nombreIngresado.toLowerCase());
+  
+  if (clienteEncontrado) {
+    const inputTel = document.getElementById("clienteTelefono");
+    const inputDir = document.getElementById("clienteDireccion");
+    
+    if (inputTel && !inputTel.value) inputTel.value = clienteEncontrado.telefono || "";
+    if (inputDir && !inputDir.value) inputDir.value = clienteEncontrado.direccion || "";
+  }
+}
+
+function guardarClienteFrecuente(nombre, telefono, direccion) {
+  if (!nombre) return;
+  let clientes = JSON.parse(localStorage.getItem('clientesFrecuentes') || '[]');
+  
+  // Buscar si ya existe para actualizar sus datos o agregarlo si es nuevo
+  let index = clientes.findIndex(c => c.nombre.toLowerCase() === nombre.toLowerCase());
+  
+  const clienteData = {
+    nombre: nombre.trim(),
+    telefono: telefono ? telefono.trim() : "",
+    direccion: direccion ? direccion.trim() : ""
+  };
+  
+  if (index >= 0) {
+    clientes[index] = clienteData; // Actualiza con la info más reciente
+  } else {
+    clientes.push(clienteData);    // Agrega nuevo cliente
+  }
+  
+  localStorage.setItem('clientesFrecuentes', JSON.stringify(clientes));
+  actualizarDatalistClientes();
 }
