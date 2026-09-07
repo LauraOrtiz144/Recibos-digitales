@@ -520,7 +520,7 @@ async function compartirPDF() {
 let guardandoEnProceso = false;
 
 async function guardarVentaEnNube() {
-  if (guardandoEnProceso) return; // Evita que se envíe dos veces si vuelven a presionar
+  if (guardandoEnProceso) return;
   
   if (factura.length === 0) {
     alert("La factura está vacía.");
@@ -547,7 +547,8 @@ async function guardarVentaEnNube() {
   try {
     const url = `${urlAPI}?accion=registrarRemisionMasiva&datos=${encodeURIComponent(JSON.stringify(payload))}`;
     
-    const respuesta = await fetch(url, { redirect: 'follow' });
+    // Petición limpia idéntica a la que usa el resto de tu app para evitar bloqueos de red en móviles
+    const respuesta = await fetch(url);
     const resultado = await respuesta.json();
 
     if (resultado.success) {
@@ -566,12 +567,11 @@ async function guardarVentaEnNube() {
     }
   } catch (err) {
     console.error("Error al guardar remisión:", err);
-    alert("⚠️ Error de red. Comprueba tu conexión e inténtalo de nuevo.");
+    alert("⚠️ Error de conexión. Comprueba tu internet e inténtalo de nuevo.");
     guardandoEnProceso = false;
     return;
   }
 
-  // Limpiar factura solo después de un éxito absoluto para que nunca se duplique
   factura = [];
   actualizarFactura();
   limpiarFirma();
