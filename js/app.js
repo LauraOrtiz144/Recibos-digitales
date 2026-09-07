@@ -523,18 +523,27 @@ async function guardarVentaEnNube() {
     return;
   }
 
+  // 🕒 Pausa de seguridad: Espera 2.5 segundos para que el celular reactive 
+  // el internet al volver de WhatsApp o de compartir antes de conectar con la nube.
+  await new Promise(resolve => setTimeout(resolve, 2500));
+
   const empleadoActual = localStorage.getItem("empleado") || "Empleado";
   const urlAPI = obtenerUrlAPI();
 
+  // Paquete ultra-liviano: asegura que viaje el código interno y la cantidad exacta
+  const itemsMinimos = factura.map(item => ({
+    codigo_interno: item.codigo_interno || item.nombre, // Respaldo por si el código usa el nombre
+    cantidad: item.cantidad
+  }));
+
   const payload = {
     accion: "registrarRemisionMasiva",
-    items: factura,
+    items: itemsMinimos,
     empleado: empleadoActual,
     numRemision: numeroRemision
   };
 
   try {
-    // Usamos GET con encodeURIComponent para que los datos viajen seguros y no se pierdan al volver de WhatsApp
     const url = `${urlAPI}?accion=registrarRemisionMasiva&datos=${encodeURIComponent(JSON.stringify(payload))}`;
     
     const respuesta = await fetch(url, { redirect: 'follow' });
@@ -555,7 +564,9 @@ async function guardarVentaEnNube() {
     }
   } catch (err) {
     console.error("Error al guardar remisión:", err);
-    alert("Error de conexión al guardar.");
+    if (confirm("⚠️ El celular tardó en reconectar internet. ¿Deseas reintentar guardar ahora?")) {
+      return guardarVentaEnNube();
+    }
     return;
   }
 
@@ -575,7 +586,6 @@ async function guardarVentaEnNube() {
 
   cargarInventarioDesdeNube();
 }
-
 /* ==========================================
    CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN
    ================================---------- */
