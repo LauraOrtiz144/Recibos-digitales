@@ -774,3 +774,18 @@ async function abrirDashboard() {
         if (elDivEmpleados) elDivEmpleados.innerHTML = "<p style='color: red;'>Error al conectar con la nube.</p>";
     }
 }
+
+function descargarHistorialPDF() {
+    const elemento = document.getElementById('historialPDF');
+    
+    const opciones = {
+        margin:       10,
+        filename:     'historial-ventas-fortiz.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Genera y descarga el PDF usando la librería integrada
+    html2pdf().from(elemento).set(opciones).save();
+}
