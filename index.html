@@ -51,7 +51,7 @@
     <!-- ENCABEZADO CON LOGO Y NOMBRE -->
     <header class="app-header">
       <div class="brand-info">
-        <img src=WhatsApp Image 2026-09-07 at 12.25.56.jpeg" alt="Logo Empresa">
+        <img src="WhatsApp Image 2026-09-07 at 12.25.56.jpeg" alt="Logo Empresa">
         <h1 id="empresaNombre">FORTIZ</h1>
       </div>
     </header>
@@ -179,16 +179,20 @@
 
   </div>
 
-  <!-- HISTORIAL -->
+ <!-- HISTORIAL -->
   <div id="historialVista" class="vista" style="display:none;">
    <h2>Historial de ventas</h2>
-   <div id="listaHistorial"></div>
-   <h3>Total del día: $<span id="totalDia">0</span></h3>
+   
+   <div id="historialPDF">
+     <div id="listaHistorial"></div>
+     <h3 style="margin-top: 15px;">Total del día: $<span id="totalDia">0</span></h3>
+   </div>
 
-   <div class="historial-acciones">
+   <div class="historial-acciones" style="margin-top: 20px;">
+     <button class="btn-success" onclick="descargarHistorialPDF()">Descargar PDF de todas las ventas</button>
      <button class="btn-secundario" onclick="mostrarVista('catalogoVista')">Volver</button>
    </div>
-  </div>  
+  </div>
 
 </div>
 
