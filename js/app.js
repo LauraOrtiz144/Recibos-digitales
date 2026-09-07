@@ -533,20 +533,23 @@ function guardarVentaEnNube() {
     cantidad: item.cantidad
   }));
 
-  // Capturamos únicamente el nombre del cliente o empresa
+  // 1. Capturamos los 3 campos localmente para que el autocompletado funcione
   const nombreCliente = document.getElementById("clienteNombre") ? document.getElementById("clienteNombre").value.trim() : "";
+  const telCliente = document.getElementById("clienteTelefono") ? document.getElementById("clienteTelefono").value.trim() : "";
+  const dirCliente = document.getElementById("clienteDireccion") ? document.getElementById("clienteDireccion").value.trim() : "";
 
+  // 2. El paquete para la nube (Google Sheets) LLEVA SOLO EL NOMBRE como pediste
   const payload = {
     accion: "registrarRemisionMasiva",
     items: itemsMinimos,
     empleado: empleadoActual,
     numRemision: numeroRemision,
-    cliente: nombreCliente || "Mostrador / Genérico" // Si está vacío, le asigna un valor por defecto
+    cliente: nombreCliente || "Mostrador / Genérico"
   };
 
-  // Guardamos en el autocompletado local (opcional)
+  // 3. Guardamos en la memoria local CON teléfono y dirección para que sí se autocompleten en la app
   if (nombreCliente) {
-    guardarClienteFrecuente(nombreCliente, "", "");
+    guardarClienteFrecuente(nombreCliente, telCliente, dirCliente);
   }
 
   factura = [];
