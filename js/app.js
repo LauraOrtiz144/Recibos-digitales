@@ -413,12 +413,12 @@ function prepararDocumentoPDF() {
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
-    doc.text("SOLMET", 14, 20);
+    doc.text("FORTIZ", 14, 20);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text("NIT: 900.000.000-0", 14, 25);
-    doc.text("Tel: 302 423 8890", 14, 30);
+    doc.text("NIT: 12345678-9", 14, 25);
+    doc.text("Tel: 301 7005 428", 14, 30);
     doc.text("Bogotá D.C.", 14, 35);
 
     doc.rect(145, 14, 50, 18);
