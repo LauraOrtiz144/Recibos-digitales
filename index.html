@@ -51,6 +51,7 @@
 
     <button class="btn-secundario" onclick="irAFacturacion()">Crear remisión</button>
     <button onclick="verHistorial()">Ver historial</button>
+    <button onclick="abrirDashboard()">Dashboard</button>
 
     <h3>Agregar Producto</h3>
     <input type="text" id="nombreProducto" placeholder="Nombre">
@@ -202,6 +203,30 @@
     </div>
 
   </div>
+<!-- DASHBOARD -->
+  <div id="dashboardVista" class="vista" style="display:none;">
+    <h2>Dashboard de Ventas</h2>
+    
+    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+      <p style="margin: 0; font-size: 0.9rem; color: #666;">Ventas Totales de Hoy</p>
+      <h3 id="dashTotalHoy" style="margin: 5px 0 0 0; color: #27ae60; font-size: 1.5rem;">$0</h3>
+    </div>
+
+    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+      <p style="margin: 0; font-size: 0.9rem; color: #666;">Producto Estrella</p>
+      <h4 id="dashTopProducto" style="margin: 5px 0 0 0; color: #2980b9;">Cargando...</h4>
+    </div>
+
+    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+      <p style="margin: 0; font-size: 0.9rem; color: #666; font-weight: bold;">Ventas por Empleado (General)</p>
+      <div id="dashVentasEmpleados">
+        <p style="color: #666; font-size: 0.9rem;">Cargando datos...</p>
+      </div>
+    </div>
+
+    <button onclick="mostrarVista('catalogoVista')">Volver</button>
+  </div>
+  
   <!-- HISTORIAL -->
   <div id="historialVista" class="vista" style="display:none;">
 
