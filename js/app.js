@@ -775,17 +775,89 @@ async function abrirDashboard() {
     }
 }
 
-function descargarHistorialPDF() {
-    const elemento = document.getElementById('historialPDF');
-    
-    const opciones = {
-        margin:       10,
-        filename:     'historial-ventas-fortiz.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
+function descargarHistorialPDF(historialArray) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
 
-    // Genera y descarga el PDF usando la librería integrada
-    html2pdf().from(elemento).set(opciones).save();
+    // 1. Encabezado del Reporte
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("REPORTE DE HISTORIAL DE REMISIONES", 14, 20);
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Fecha de generación: ${new Date().toLocaleDateString()} - ${new Date().toLocaleTimeString()}`, 14, 26);
+    doc.text("NIT: 900.000.000-0 | Bogotá D.C.", 14, 31);
+
+    // Línea divisoria superior
+    doc.setLineWidth(0.5);
+    doc.line(14, 35, 196, 35);
+
+    let y = 42;
+
+    // Validación si el historial está vacío
+    if (!historialArray || historialArray.length === 0) {
+        doc.setFont("helvetica", "italic");
+        doc.text("No hay registros en el historial para mostrar.", 14, y);
+        doc.save("Historial_Remisiones.pdf");
+        return;
+    }
+
+    // 2. Iterar sobre cada remisión registrada
+    historialArray.forEach((remision, index) => {
+        // Control de salto de página automático si se acaba el espacio vertical
+        if (y > 250) {
+            doc.addPage();
+            y = 20;
+        }
+
+        // Cabecera de la remisión
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(30, 41, 59);
+        doc.text(`Remisión: ${remision.numero || ('#' + (index + 1))}`, 14, y);
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.text(`Fecha: ${remision.fecha || 'N/A'}`, 120, y);
+        doc.text(`Empleado: ${remision.empleado || 'Sistema'}`, 165, y);
+
+        y += 5;
+        doc.text(`Cliente: ${remision.cliente || 'Consumidor Final'}  |  NIT/C.C.: ${remision.nit || 'Consumidor Final / C.C.'}`, 14, y);
+        
+        y += 5;
+        doc.setFont("helvetica", "bold");
+        doc.text("Detalle de Productos:", 14, y);
+        y += 4;
+
+        // Listar los productos de esta remisión
+        doc.setFont("helvetica", "normal");
+        if (remision.productos && Array.isArray(remision.productos)) {
+            remision.productos.forEach(prod => {
+                if (y > 275) { doc.addPage(); y = 20; }
+                const cant = prod.cantidad || 1;
+                const nombre = prod.nombre || prod.producto || 'Producto';
+                const subtotal = prod.subtotal || 0;
+                
+                doc.text(`  • [Cant: ${cant}] ${nombre}`, 16, y);
+                doc.text(`$${Number(subtotal).toLocaleString()}`, 185, y, { align: "right" });
+                y += 5;
+            });
+        }
+
+        // Total de la remisión
+        y += 1;
+        doc.setFont("helvetica", "bold");
+        doc.text(`Total Remisión: $${Number(remision.total || 0).toLocaleString()}`, 185, y, { align: "right" });
+        
+        y += 4;
+        doc.setLineWidth(0.2);
+        doc.setDrawColor(200, 200, 200);
+        doc.line(14, y, 196, y);
+
+        y += 8; // Separación antes de la siguiente remisión
+    });
+
+    // 3. Descarga directa en el dispositivo (sin pantallas intermedias feas)
+    doc.save("Historial_Remisiones.pdf");
 }
