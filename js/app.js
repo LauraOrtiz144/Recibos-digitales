@@ -517,22 +517,23 @@ async function compartirPDF() {
     }
 }
 
+let guardandoEnProceso = false;
+
 async function guardarVentaEnNube() {
+  if (guardandoEnProceso) return; // Evita que se envíe dos veces si vuelven a presionar
+  
   if (factura.length === 0) {
     alert("La factura está vacía.");
     return;
   }
 
-  // 🕒 Pausa de seguridad: Espera 2.5 segundos para que el celular reactive 
-  // el internet al volver de WhatsApp o de compartir antes de conectar con la nube.
-  await new Promise(resolve => setTimeout(resolve, 2500));
+  guardandoEnProceso = true;
 
   const empleadoActual = localStorage.getItem("empleado") || "Empleado";
   const urlAPI = obtenerUrlAPI();
 
-  // Paquete ultra-liviano: asegura que viaje el código interno y la cantidad exacta
   const itemsMinimos = factura.map(item => ({
-    codigo_interno: item.codigo_interno || item.nombre, // Respaldo por si el código usa el nombre
+    codigo_interno: item.codigo_interno || item.nombre,
     cantidad: item.cantidad
   }));
 
@@ -560,16 +561,17 @@ async function guardarVentaEnNube() {
       alert("Remisión guardada y stock descontado ✔");
     } else {
       alert("Error al guardar: " + (resultado.message || "Desconocido"));
+      guardandoEnProceso = false;
       return;
     }
   } catch (err) {
     console.error("Error al guardar remisión:", err);
-    if (confirm("⚠️ El celular tardó en reconectar internet. ¿Deseas reintentar guardar ahora?")) {
-      return guardarVentaEnNube();
-    }
+    alert("⚠️ Error de red. Comprueba tu conexión e inténtalo de nuevo.");
+    guardandoEnProceso = false;
     return;
   }
 
+  // Limpiar factura solo después de un éxito absoluto para que nunca se duplique
   factura = [];
   actualizarFactura();
   limpiarFirma();
@@ -584,6 +586,7 @@ async function guardarVentaEnNube() {
     elemNum.innerText = String(numeroRemision).padStart(4, '0');
   }
 
+  guardandoEnProceso = false;
   cargarInventarioDesdeNube();
 }
 /* ==========================================
