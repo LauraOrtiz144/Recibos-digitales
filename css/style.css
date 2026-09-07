@@ -155,40 +155,27 @@ button:hover {
 
 .app-header {
     display: flex;
+    justify-content: center;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
+    padding: 10px 0;
+    margin-bottom: 15px;
     border-bottom: 1px solid #e2e8f0;
 }
 
-.brand-info {
+.brand-logo-full {
+    width: 100%;
+    max-width: 280px;
+    height: auto;
     display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.brand-logo {
-    background: transparent;
-    width: auto;
-    height: 42px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
     justify-content: center;
-    overflow: hidden;
+    align-items: center;
 }
 
-.brand-logo img {
-    max-height: 40px;
-    width: auto;
+.brand-logo-full img {
+    width: 100%;
+    height: auto;
     object-fit: contain;
-}
-
-.brand-info h1 {
-    margin: 0;
-    font-size: 18px;
-    color: #1e293b;
+    display: block;
 }
 
 .section-title {
@@ -731,11 +718,4 @@ button:hover {
 
 .sugerencia-item:hover {
     background-color: #f1f1f1;
-}
-
-.logo-chico {
-    max-height: 40px !important;
-    width: auto !important;
-    object-fit: contain !important;
-    display: block;
 }
