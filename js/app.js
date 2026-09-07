@@ -20,7 +20,7 @@ function formatoMoneda(valor) {
 }
 
 /* ==========================================
-   INICIALIZACIÓN ÚNICA Y OPTIMIZADA (CORREGIDO)
+   INICIALIZACIÓN ÚNICA Y OPTIMIZADA
    ================================---------- */
 window.addEventListener("DOMContentLoaded", async () => {
   const urlCliente = localStorage.getItem("urlClienteAPI");
@@ -52,7 +52,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (productosCache) {
     try {
       productos = JSON.parse(productosCache);
-      mostrarCatalogo(); // El catálogo aparece al instante
+      mostrarCatalogo(); 
     } catch (e) {
       console.error("Error al leer caché local", e);
     }
@@ -167,7 +167,6 @@ async function cargarInventarioDesdeNube() {
         
         if (resultado.success) {
             productos = resultado.productos;
-            // Guardamos una copia en el teléfono para cargas futuras instantáneas
             localStorage.setItem("cache_productos", JSON.stringify(productos));
             mostrarCatalogo();
         }
@@ -283,7 +282,7 @@ function actualizarFactura() {
 }
 
 /* ==========================================
-   BUSCADOR EN VIVO (Protegido tras DOM)
+   BUSCADOR EN VIVO
    ================================---------- */
 document.addEventListener("DOMContentLoaded", () => {
     const inputBusq = document.getElementById("buscarProducto");
@@ -333,7 +332,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /* ==========================================
-   HISTORIAL DE VENTAS (Con conversión numérica y formato)
+   HISTORIAL DE VENTAS
    ================================---------- */
 async function verHistorial() {
     mostrarVista("historialVista");
@@ -769,4 +768,3 @@ async function abrirDashboard() {
         if (elDivEmpleados) elDivEmpleados.innerHTML = "<p style='color: red;'>Error al conectar con la nube.</p>";
     }
 }
-
