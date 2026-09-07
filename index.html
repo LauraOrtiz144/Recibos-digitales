@@ -14,16 +14,15 @@
 
   <!-- 1. Configuración General y Android (Chrome) -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#2980b9"> <!-- Color de la barra de navegación en Android -->
+  <meta name="theme-color" content="#2980b9">
   <link rel="icon" type="image/png" href="icons/icon-192.png">
 
   <!-- 2. Configuración específica para iOS (Apple / Safari) -->
-  <meta name="apple-mobile-web-app-capable" content="yes"> <!-- Pantalla completa en iOS -->
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> <!-- Barra superior transparente/negra -->
-  <meta name="apple-mobile-web-app-title" content="SOLMET"> <!-- Nombre bajo el ícono en iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SOLMET">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="./icons/icon-512.png"> 
-  <!-- Ícono de instalación para iPhone/iPad -->
 </head>
 <body>
 
@@ -36,7 +35,8 @@
     <input type="text" id="nombreEmpleado" placeholder="Tu nombre o el del empleado">
     <button onclick="activar()">Activar</button>
   </div>
-<!-- LOGIN -->
+
+  <!-- LOGIN -->
   <div id="loginVista" class="vista" style="display:none;">
     <h2>Iniciar sesión</h2>
     <input type="text" id="nombreLogin" placeholder="Tu nombre de empleado">
@@ -51,7 +51,6 @@
 
     <button class="btn-secundario" onclick="irAFacturacion()">Crear remisión</button>
     <button onclick="verHistorial()">Ver historial</button>
-    <button onclick="abrirDashboard()">Dashboard</button>
 
     <h3>Agregar Producto</h3>
     <input type="text" id="nombreProducto" placeholder="Nombre">
@@ -203,30 +202,7 @@
     </div>
 
   </div>
-<!-- DASHBOARD -->
-  <div id="dashboardVista" class="vista" style="display:none;">
-    <h2>Dashboard de Ventas</h2>
-    
-    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-      <p style="margin: 0; font-size: 0.9rem; color: #666;">Ventas Totales de Hoy</p>
-      <h3 id="dashTotalHoy" style="margin: 5px 0 0 0; color: #27ae60; font-size: 1.5rem;">$0</h3>
-    </div>
 
-    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-      <p style="margin: 0; font-size: 0.9rem; color: #666;">Producto Estrella</p>
-      <h4 id="dashTopProducto" style="margin: 5px 0 0 0; color: #2980b9;">Cargando...</h4>
-    </div>
-
-    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-      <p style="margin: 0; font-size: 0.9rem; color: #666; font-weight: bold;">Ventas por Empleado (General)</p>
-      <div id="dashVentasEmpleados">
-        <p style="color: #666; font-size: 0.9rem;">Cargando datos...</p>
-      </div>
-    </div>
-
-    <button onclick="mostrarVista('catalogoVista')">Volver</button>
-  </div>
-  
   <!-- HISTORIAL -->
   <div id="historialVista" class="vista" style="display:none;">
 
@@ -255,8 +231,6 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        // OJO: Asegúrate de que tu archivo en Visual Studio Code 
-        // se llame exactamente 'sw.js'
         navigator.serviceWorker.register('./sw.js')
           .then(reg => console.log('Service Worker registrado correctamente:', reg.scope))
           .catch(err => console.error('Falló el registro del Service Worker:', err));
@@ -264,6 +238,5 @@
     }
   </script>
 </body>
-</html> 
-
+</html>
 
