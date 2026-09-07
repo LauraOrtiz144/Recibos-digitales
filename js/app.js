@@ -87,7 +87,7 @@ async function activar() {
     if (resultado.success) {
       localStorage.setItem("activado", "true");
       localStorage.setItem("urlClienteAPI", resultado.urlCliente); 
-      localStorage.setItem("pinJefe", resultado.pinJefe);      
+      localStorage.setItem("pinJefe", resultado.pinJefe);     
       localStorage.setItem("pinEmpleado", resultado.pinEmpleado); 
       
       alert("¡Activado correctamente!");
@@ -211,6 +211,7 @@ function mostrarCatalogo() {
     contenedor.appendChild(div);
   });
 }
+
 /* ==========================================
    CARRITO Y FACTURACIÓN
    ================================---------- */
@@ -249,7 +250,7 @@ function agregarProductoFactura(producto, cantidad = 1) {
         });
     }
 
-    actualizarFactura();   
+    actualizarFactura();    
 }
 
 async function irAFacturacion() {
@@ -282,55 +283,57 @@ function actualizarFactura() {
 }
 
 /* ==========================================
-   BUSCADOR EN VIVO
+   BUSCADOR EN VIVO (Protegido tras DOM)
    ================================---------- */
-const inputBusq = document.getElementById("buscarProducto");
-if (inputBusq) {
-  inputBusq.addEventListener("input", function () {
-      const texto = this.value.toLowerCase().trim();
-      const resultados = document.getElementById("resultados");
-      if (!resultados) return;
+document.addEventListener("DOMContentLoaded", () => {
+    const inputBusq = document.getElementById("buscarProducto");
+    if (inputBusq) {
+      inputBusq.addEventListener("input", function () {
+          const texto = this.value.toLowerCase().trim();
+          const resultados = document.getElementById("resultados");
+          if (!resultados) return;
 
-      resultados.innerHTML = "";
-      if (texto === "") return;
+          resultados.innerHTML = "";
+          if (texto === "") return;
 
-      productos.forEach(p => {
-          if (p.nombre.toLowerCase().includes(texto)) {
-              const div = document.createElement("div");
-              div.className = "resultadoProducto";
-              div.innerHTML = `
-                  <div class="resultadoInfo">
-                      <h4>${p.nombre}</h4>
-                      <p>Stock: ${p.cantidad_actual} | $${formatoMoneda(p.precio)}</p>
-                  </div>
-                  <div class="accionesProducto">
-                      <input type="number" class="cantidadProducto" value="1" min="1" max="${p.cantidad_actual}">
-                      <button class="btnAgregar">Agregar</button>
-                  </div>
-              `;
+          productos.forEach(p => {
+              if (p.nombre.toLowerCase().includes(texto)) {
+                  const div = document.createElement("div");
+                  div.className = "resultadoProducto";
+                  div.innerHTML = `
+                      <div class="resultadoInfo">
+                          <h4>${p.nombre}</h4>
+                          <p>Stock: ${p.cantidad_actual} | $${formatoMoneda(p.precio)}</p>
+                      </div>
+                      <div class="accionesProducto">
+                          <input type="number" class="cantidadProducto" value="1" min="1" max="${p.cantidad_actual}">
+                          <button class="btnAgregar">Agregar</button>
+                      </div>
+                  `;
 
-              const cantidadInput = div.querySelector(".cantidadProducto");
-              div.querySelector(".btnAgregar").onclick = () => {
-                  agregarProductoFactura(p, cantidadInput.value);
-                  inputBusq.value = "";
-                  resultados.innerHTML = "";
-              };
+                  const cantidadInput = div.querySelector(".cantidadProducto");
+                  div.querySelector(".btnAgregar").onclick = () => {
+                      agregarProductoFactura(p, cantidadInput.value);
+                      inputBusq.value = "";
+                      resultados.innerHTML = "";
+                  };
 
-              resultados.appendChild(div);
-          }
+                  resultados.appendChild(div);
+              }
+          });
       });
-  });
-}
+    }
 
-const btnGuardarProd = document.getElementById("guardarProducto");
-if (btnGuardarProd) {
-  btnGuardarProd.addEventListener("click", () => {
-    alert("Para mantener el inventario sincronizado, agrega o edita los productos directamente en tu Google Sheet.");
-  });
-}
+    const btnGuardarProd = document.getElementById("guardarProducto");
+    if (btnGuardarProd) {
+      btnGuardarProd.addEventListener("click", () => {
+        alert("Para mantener el inventario sincronizado, agrega o edita los productos directamente en tu Google Sheet.");
+      });
+    }
+});
 
 /* ==========================================
-   HISTORIAL DE VENTAS
+   HISTORIAL DE VENTAS (Con conversión numérica y formato)
    ================================---------- */
 async function verHistorial() {
     mostrarVista("historialVista");
@@ -365,7 +368,7 @@ async function verHistorial() {
             }
 
             ventasMostrar.forEach(item => {
-                sumaTotalDia += item.subtotal; 
+                sumaTotalDia += Number(item.subtotal) || 0; 
                 const numRemisionStr = String(item.numRemision).padStart(4, '0');
                 const div = document.createElement("div");
                 div.className = "historial-item";
@@ -380,13 +383,13 @@ async function verHistorial() {
                     <p style="margin: 0 0 5px 0; font-size: 0.95rem; color: #2c3e50;"><b>Producto:</b> ${item.producto}</p>
                     <div style="display: flex; justify-content: space-between; font-size: 0.9rem; border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px;">
                         <span>Cant: <b>${item.cantidad}</b></span>
-                        <span style="color: #27ae60; font-weight: bold;">Subtotal: $${item.subtotal.toLocaleString()}</span>
+                        <span style="color: #27ae60; font-weight: bold;">Subtotal: $${formatoMoneda(item.subtotal)}</span>
                     </div>
                 `;
                 lista.appendChild(div);
             });
 
-            if (spanTotalDia) spanTotalDia.innerText = sumaTotalDia.toLocaleString();
+            if (spanTotalDia) spanTotalDia.innerText = formatoMoneda(sumaTotalDia);
         } else {
             lista.innerHTML = "<p>No se pudo cargar el historial.</p>";
         }
@@ -572,6 +575,7 @@ function guardarVentaEnNube() {
     cargarInventarioDesdeNube();
   }, 1500);
 }
+
 /* ==========================================
    CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN
    ================================---------- */
@@ -615,13 +619,11 @@ function limpiarFirma() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 }
-// --- AUTOCOMPLETADO DE CLIENTES FRECUENTES ---
 
-// 1. Cargar las opciones en el datalist al abrir la app o cargar la página
+// --- AUTOCOMPLETADO DE CLIENTES FRECUENTES ---
 document.addEventListener("DOMContentLoaded", () => {
   actualizarDatalistClientes();
   
-  // Escuchar cuando el usuario escriba o seleccione un cliente por nombre
   const inputNombre = document.getElementById("clienteNombre");
   if (inputNombre) {
     inputNombre.addEventListener("input", function() {
@@ -639,7 +641,7 @@ function actualizarDatalistClientes() {
   
   clientes.forEach(c => {
     const option = document.createElement("option");
-    option.value = c.nombre; // Lo que se muestra y autocompleta
+    option.value = c.nombre; 
     datalist.appendChild(option);
   });
 }
@@ -648,7 +650,6 @@ function autoCompletarCliente(nombreIngresado) {
   if (!nombreIngresado) return;
   const clientes = JSON.parse(localStorage.getItem('clientesFrecuentes') || '[]');
   
-  // Buscar si el cliente ya existe en la memoria
   const clienteEncontrado = clientes.find(c => c.nombre.toLowerCase() === nombreIngresado.toLowerCase());
   
   if (clienteEncontrado) {
@@ -664,7 +665,6 @@ function guardarClienteFrecuente(nombre, telefono, direccion) {
   if (!nombre) return;
   let clientes = JSON.parse(localStorage.getItem('clientesFrecuentes') || '[]');
   
-  // Buscar si ya existe para actualizar sus datos o agregarlo si es nuevo
   let index = clientes.findIndex(c => c.nombre.toLowerCase() === nombre.toLowerCase());
   
   const clienteData = {
@@ -674,11 +674,99 @@ function guardarClienteFrecuente(nombre, telefono, direccion) {
   };
   
   if (index >= 0) {
-    clientes[index] = clienteData; // Actualiza con la info más reciente
+    clientes[index] = clienteData; 
   } else {
-    clientes.push(clienteData);    // Agrega nuevo cliente
+    clientes.push(clienteData);    
   }
   
   localStorage.setItem('clientesFrecuentes', JSON.stringify(clientes));
   actualizarDatalistClientes();
 }
+
+/* ==========================================
+   DASHBOARD Y REPORTES DIARIOS
+   ================================---------- */
+async function abrirDashboard() {
+    mostrarVista("dashboardVista");
+    const elTotalHoy = document.getElementById("dashTotalHoy");
+    const elTopProd = document.getElementById("dashTopProducto");
+    const elDivEmpleados = document.getElementById("dashVentasEmpleados");
+
+    if (!elTotalHoy) return;
+
+    elTotalHoy.innerText = "Calculando...";
+    if (elTopProd) elTopProd.innerText = "Calculando...";
+    if (elDivEmpleados) elDivEmpleados.innerHTML = "<p style='color: #666; font-size: 0.9rem;'>Cargando datos...</p>";
+
+    const urlAPI = obtenerUrlAPI();
+    if (!urlAPI) return;
+
+    try {
+        const respuesta = await fetch(`${urlAPI}?accion=obtenerHistorial`, { redirect: 'follow' });
+        const resultado = await respuesta.json();
+
+        if (!resultado.success || !resultado.historial) {
+            elTotalHoy.innerText = "$0";
+            if (elTopProd) elTopProd.innerText = "Sin datos";
+            if (elDivEmpleados) elDivEmpleados.innerHTML = "<p>No se pudo cargar el historial.</p>";
+            return;
+        }
+
+        const historial = resultado.historial;
+        const hoyStr = new Date().toDateString();
+
+        let totalHoy = 0;
+        let conteoProductos = {};
+        let ventasEmpleados = {};
+
+        historial.forEach(item => {
+            const fechaItem = new Date(item.fecha);
+            
+            if (fechaItem.toDateString() === hoyStr) {
+                totalHoy += Number(item.subtotal) || 0;
+            }
+
+            const prodNombre = item.producto || "Desconocido";
+            const cant = Number(item.cantidad) || 0;
+            conteoProductos[prodNombre] = (conteoProductos[prodNombre] || 0) + cant;
+
+            const empNombre = item.empleado || "Sin asignar";
+            ventasEmpleados[empNombre] = (ventasEmpleados[empNombre] || 0) + (Number(item.subtotal) || 0);
+        });
+
+        elTotalHoy.innerText = `$${formatoMoneda(totalHoy)}`;
+
+        let productoEstrella = "Ninguno";
+        let maxCantidad = 0;
+        for (let [prod, cant] of Object.entries(conteoProductos)) {
+            if (cant > maxCantidad) {
+                maxCantidad = cant;
+                productoEstrella = `${prod} (${cant} unidades)`;
+            }
+        }
+        if (elTopProd) elTopProd.innerText = productoEstrella;
+
+        if (elDivEmpleados) {
+            elDivEmpleados.innerHTML = "";
+            const empleadosKeys = Object.keys(ventasEmpleados);
+            
+            if (empleadosKeys.length === 0) {
+                elDivEmpleados.innerHTML = "<p style='color: #666;'>No hay registros de empleados.</p>";
+            } else {
+                empleadosKeys.forEach(emp => {
+                    const subDiv = document.createElement("div");
+                    subDiv.style.cssText = "display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 0.9rem;";
+                    subDiv.innerHTML = `<span><b>${emp}</b></span> <span style="color: #27ae60; font-weight: bold;">$${formatoMoneda(ventasEmpleados[emp])}</span>`;
+                    elDivEmpleados.appendChild(subDiv);
+                });
+            }
+        }
+
+    } catch (error) {
+        console.error("Error al generar el dashboard:", error);
+        elTotalHoy.innerText = "$0";
+        if (elTopProd) elTopProd.innerText = "Error de conexión";
+        if (elDivEmpleados) elDivEmpleados.innerHTML = "<p style='color: red;'>Error al conectar con la nube.</p>";
+    }
+}
+
