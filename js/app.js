@@ -867,7 +867,24 @@ async function descargarHistorialPDF() {
         doc.setFontSize(11);
         doc.text(`TOTAL GENERAL: $${formatoMoneda(sumaTotalPDF)}`, 196, y, { align: "right" });
 
-        // 3. Descarga directa en el dispositivo
+        // 3. Opciones inteligentes: Compartir como archivo real (WhatsApp) o Descargar
+        const pdfBlob = doc.output('blob');
+        const archivo = new File([pdfBlob], "Historial_Remisiones.pdf", { type: "application/pdf" });
+
+        if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
+            try {
+                await navigator.share({
+                    files: [archivo],
+                    title: 'Historial de Remisiones',
+                    text: 'Adjunto el reporte de historial de ventas.'
+                });
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+            }
+        }
+
+        // Descarga directa si está en PC
         doc.save("Historial_Remisiones.pdf");
 
     } catch (error) {
