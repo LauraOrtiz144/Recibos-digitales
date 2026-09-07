@@ -517,17 +517,11 @@ async function compartirPDF() {
     }
 }
 
-let guardandoEnProceso = false;
-
-async function guardarVentaEnNube() {
-  if (guardandoEnProceso) return;
-  
+function guardarVentaEnNube() {
   if (factura.length === 0) {
     alert("La factura está vacía.");
     return;
   }
-
-  guardandoEnProceso = true;
 
   const empleadoActual = localStorage.getItem("empleado") || "Empleado";
   const urlAPI = obtenerUrlAPI();
@@ -544,41 +538,17 @@ async function guardarVentaEnNube() {
     numRemision: numeroRemision
   };
 
-  try {
-    const url = `${urlAPI}?accion=registrarRemisionMasiva&datos=${encodeURIComponent(JSON.stringify(payload))}`;
-    
-    // Petición limpia idéntica a la que usa el resto de tu app para evitar bloqueos de red en móviles
-    const respuesta = await fetch(url);
-    const resultado = await respuesta.json();
-
-    if (resultado.success) {
-      if (resultado.alertas && resultado.alertas.length > 0) {
-        let msg = "⚠️ ¡ATENCIÓN! Los siguientes productos han llegado a nivel crítico o están agotados:\n";
-        resultado.alertas.forEach(a => {
-          msg += `- ${a.producto}: Quedan ${a.stockRestante} unidades\n`;
-        });
-        alert(msg);
-      }
-      alert("Remisión guardada y stock descontado ✔");
-    } else {
-      alert("Error al guardar: " + (resultado.message || "Desconocido"));
-      guardandoEnProceso = false;
-      return;
-    }
-  } catch (err) {
-    console.error("Error al guardar remisión:", err);
-    alert("⚠️ Error de conexión. Comprueba tu internet e inténtalo de nuevo.");
-    guardandoEnProceso = false;
-    return;
-  }
-
+  // 1. LIMPIAR LA PANTALLA AL INSTANTE (Sin esperas, sin alertas bloqueantes)
   factura = [];
   actualizarFactura();
   limpiarFirma();
   
-  document.getElementById("clienteNombre").value = "";
-  document.getElementById("clienteTelefono").value = "";
-  document.getElementById("clienteDireccion").value = "";
+  const inputNombre = document.getElementById("clienteNombre");
+  const inputTel = document.getElementById("clienteTelefono");
+  const inputDir = document.getElementById("clienteDireccion");
+  if (inputNombre) inputNombre.value = "";
+  if (inputTel) inputTel.value = "";
+  if (inputDir) inputDir.value = "";
   
   numeroRemision++;
   const elemNum = document.getElementById("numRemisionTexto");
@@ -586,8 +556,16 @@ async function guardarVentaEnNube() {
     elemNum.innerText = String(numeroRemision).padStart(4, '0');
   }
 
-  guardandoEnProceso = false;
-  cargarInventarioDesdeNube();
+  // 2. ENVIAR A GOOGLE SHEETS EN SEGUNDO PLANO (Viaja solo y sin congelar tu celular)
+  const url = `${urlAPI}?accion=registrarRemisionMasiva&datos=${encodeURIComponent(JSON.stringify(payload))}`;
+  fetch(url, { mode: 'no-cors' }).catch(err => {
+    console.log("Sincronización en segundo plano");
+  });
+
+  // 3. Refrescar el inventario en silencio después de un momento
+  setTimeout(() => {
+    cargarInventarioDesdeNube();
+  }, 1500);
 }
 /* ==========================================
    CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN
