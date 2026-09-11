@@ -554,48 +554,56 @@ function guardarVentaEnNube() {
   const dirCliente = document.getElementById("clienteDireccion") ? document.getElementById("clienteDireccion").value.trim() : "";
   const estadoPagoSeleccionado = document.getElementById("selectEstadoPago") ? document.getElementById("selectEstadoPago").value : "Pagado";
 
+  // 1. Capturar la firma actual del canvas en Base64 de forma efímera
+  const canvasFirma = document.getElementById("firmaCanvas");
+  let firmaBase64 = "";
+  if (canvasFirma) {
+    firmaBase64 = canvasFirma.toDataURL("image/png");
+  }
+
+  // 2. Empaquetar todo incluyendo la firma
   const payload = {
     accion: "registrarRemisionMasiva",
     items: itemsMinimos,
     empleado: empleadoActual,
     numRemision: numeroRemision,
     cliente: nombreCliente || "Mostrador / Genérico",
-    estadoPago: estadoPagoSeleccionado
+    telefono: telCliente,
+    direccion: dirCliente,
+    estadoPago: estadoPagoSeleccionado,
+    firmaCliente: firmaBase64 
   };
 
-  if (nombreCliente) {
-    guardarClienteFrecuente(nombreCliente, telCliente, dirCliente);
-  }
-
+  // Limpieza local inmediata de la factura y de la firma en pantalla
   factura = [];
   actualizarFactura();
   limpiarFirma(); 
   
-  const inputNombre = document.getElementById("clienteNombre");
-  const inputTel = document.getElementById("clienteTelefono");
-  const inputDir = document.getElementById("clienteDireccion");
-  if (inputNombre) inputNombre.value = "";
-  if (inputTel) inputTel.value = "";
-  if (inputDir) inputDir.value = "";
+  if (document.getElementById("clienteNombre")) document.getElementById("clienteNombre").value = "";
+  if (document.getElementById("clienteTelefono")) document.getElementById("clienteTelefono").value = "";
+  if (document.getElementById("clienteDireccion")) document.getElementById("clienteDireccion").value = "";
   
   numeroRemision++;
   const formatoNum = String(numeroRemision).padStart(4, '0');
-  
-  const elemNum1 = document.getElementById("numRemisionTexto");
-  const elemNum2 = document.getElementById("numeroRemision");
-  if (elemNum1) elemNum1.innerText = formatoNum;
-  if (elemNum2) elemNum2.innerText = formatoNum;
+  if (document.getElementById("numRemisionTexto")) document.getElementById("numRemisionTexto").innerText = formatoNum;
+  if (document.getElementById("numeroRemision")) document.getElementById("numeroRemision").innerText = formatoNum;
 
-  const url = `${urlAPI}?accion=registrarRemisionMasiva&datos=${encodeURIComponent(JSON.stringify(payload))}`;
-  fetch(url, { mode: 'no-cors' }).catch(err => {
-    console.log("Sincronización en segundo plano");
+  // 3. Envío seguro por POST al Apps Script del cliente
+  fetch(urlAPI, {
+    method: "POST",
+    mode: "no-cors",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  }).catch(err => {
+    console.log("Sincronización en segundo plano con la nube", err);
   });
 
   setTimeout(() => {
     cargarInventarioDesdeNube();
   }, 1500);
 }
-
 /* ==========================================
    CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN (CLIENTE)
    ================================---------- */
