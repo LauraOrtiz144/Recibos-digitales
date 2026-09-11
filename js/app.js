@@ -115,12 +115,12 @@ function login() {
 
   // Si aún no está guardada la firma corporativa, es obligatoria en este primer login
   if (!firmaGuardadaLocal) {
-    const canvasLogin = document.getElementById("canvasFirmaLogin");
-    if (!canvasLogin || !ctxLoginLogin) {
+    const canvasLoginElem = document.getElementById("canvasFirmaLogin");
+    if (!canvasLoginElem || !ctxLoginLogin) {
       alert("Por favor dibuja la firma corporativa.");
       return;
     }
-    firmaBase64 = canvasLogin.toDataURL("image/png");
+    firmaBase64 = canvasLoginElem.toDataURL("image/png");
     
     // Validación básica para verificar que no esté vacío
     if (firmaBase64.length < 3000) {
@@ -177,7 +177,7 @@ function iniciarEntornoTrabajo() {
 function cerrarSesion() {
   localStorage.removeItem("sesionActiva");
   mostrarVista("loginVista");
-  verificarSiRequiereFirmaLogin(); // Al cerrar sesión y volver al login, revisa si debe mostrar el canvas (si se borró caché mostraría de nuevo, de lo contrario lo omite)
+  verificarSiRequiereFirmaLogin(); 
 }
 
 /* ==========================================
@@ -225,6 +225,7 @@ async function cargarInventarioDesdeNube() {
 async function actualizarNumeroRemisionDesdeNube() {
     try {
         const urlAPI = obtenerUrlAPI();
+        if (!urlAPI) return;
         const respuesta = await fetch(`${urlAPI}?accion=obtenerSiguienteRemision`, { redirect: 'follow' });
         const resultado = await respuesta.json();
         if (resultado.success) {
@@ -386,6 +387,7 @@ async function verHistorial() {
 
     lista.innerHTML = "<p style='text-align:center;'>Cargando historial del mes...</p>";
     const urlAPI = obtenerUrlAPI();
+    if (!urlAPI) return;
 
     try {
         const respuesta = await fetch(`${urlAPI}?accion=obtenerHistorial`, { redirect: 'follow' });
@@ -404,7 +406,7 @@ async function verHistorial() {
             let ventasMostrar = resultado.historial.filter(item => {
                 const fechaItem = new Date(item.fecha);
                 const coincideMes = fechaItem.getMonth() === mesActual && fechaItem.getFullYear() === anioActual;
-                
+                 
                 if (!coincideMes) return false;
 
                 if (rol === "empleado") {
@@ -417,7 +419,7 @@ async function verHistorial() {
                 lista.innerHTML = "<p style='text-align:center;'>No hay ventas registradas en este mes.</p>";
                 if (spanTotalDia) spanTotalDia.innerText = "0";
                 return;
-            }
+          }
 
             ventasMostrar.forEach(item => {
                 sumaTotalMes += Number(item.subtotal) || 0; 
@@ -425,7 +427,7 @@ async function verHistorial() {
                 const div = document.createElement("div");
                 div.className = "historial-item";
                 div.style.cssText = "background: white; margin-bottom: 12px; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid #2980b9;";
-                
+                 
                 const esPendiente = item.estadoPago === "Pendiente";
                 const colorFondoEstado = esPendiente ? "#e74c3c" : "#27ae60";
                 const textoEstado = esPendiente ? "POR COBRAR" : "PAGADO";
@@ -439,34 +441,34 @@ async function verHistorial() {
                     <p style="margin: 0 0 5px 0; font-size: 0.95rem; color: #2c3e50;"><b>Producto:</b> ${item.producto}</p>
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px;">
                         <div>
-                          <span>Cant: <b>${item.cantidad}</b></span>
+                            <span>Cant: <b>${item.cantidad}</b></span>
                         </div>
                         <div>
-                          <span style="background: ${colorFondoEstado}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 8px;">${textoEstado}</span>
-                          <span style="color: #27ae60; font-weight: bold;">Subtotal: $${formatoMoneda(item.subtotal)}</span>
+                            <span style="background: ${colorFondoEstado}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 8px;">${textoEstado}</span>
+                            <span style="color: #27ae60; font-weight: bold;">Subtotal: $${formatoMoneda(item.subtotal)}</span>
                         </div>
                     </div>
                 `;
                 lista.appendChild(div);
-            });
+          });
 
             if (spanTotalDia) spanTotalDia.innerText = formatoMoneda(sumaTotalMes);
-        } else {
-            lista.innerHTML = "<p>No se pudo cargar el historial.</p>";
-        }
-    } catch (error) {
+      } else {
+          lista.innerHTML = "<p>No se pudo cargar el historial.</p>";
+      }
+  } catch (error) {
         console.error(error);
         lista.innerHTML = "<p>Error de conexión al obtener el historial.</p>";
-    }
+  }
 }
 
 /* ==========================================
    GENERADOR PDF Y COMPARTIR
    ================================---------- */
 function prepararDocumentoPDF() {
-    const cliente = document.getElementById("clienteNombre").value || "Cliente";
-    const telefono = document.getElementById("clienteTelefono").value || "";
-    const direccion = document.getElementById("clienteDireccion").value || "";
+    const cliente = document.getElementById("clienteNombre")?.value || "Cliente";
+    const telefono = document.getElementById("clienteTelefono")?.value || "";
+    const direccion = document.getElementById("clienteDireccion")?.value || "";
     const numeroFormateado = String(numeroRemision).padStart(4, '0');
     const nombreArchivo = `Remision_${cliente}_${numeroFormateado}.pdf`;
 
@@ -529,15 +531,14 @@ function prepararDocumentoPDF() {
     doc.text(`TOTAL: $${formatoMoneda(total)}`, 145, startY, { align: "left" });
 
     startY += 30;
-    doc.line(14, startY, 95, startY);      // Línea para "Entregó" (Vendedor)
-    doc.line(114, startY, 195, startY);    // Línea para "Recibió" (Cliente)
+    doc.line(14, startY, 95, startY);
+    doc.line(114, startY, 195, startY);
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.text("Entregó", 14, startY + 4);
     doc.text("Recibió", 114, startY + 4);
 
-    // PINTAR LA FIRMA DEL CLIENTE EN EL PDF (Mantiene tu lógica original intacta)
     const canvasFirma = document.getElementById("firmaCanvas");
     if (canvasFirma) {
         const firmaClienteData = canvasFirma.toDataURL("image/png");
@@ -590,6 +591,7 @@ function guardarVentaEnNube() {
 
   const empleadoActual = localStorage.getItem("empleado") || "Empleado";
   const urlAPI = obtenerUrlAPI();
+  if (!urlAPI) return;
 
   const itemsMinimos = factura.map(item => ({
     codigo_interno: item.codigo_interno || item.nombre,
@@ -649,6 +651,7 @@ function guardarFirmaCorporativaEnNube() {
 
   const firmaBase64 = canvasFirma.toDataURL("image/png");
   const urlAPI = obtenerUrlAPI();
+  if (!urlAPI) return;
 
   const payload = {
     accion: "guardarFirmaCorporativa",
