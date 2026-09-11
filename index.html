@@ -104,7 +104,7 @@
 
       <div class="brand-logo-full">
 
-        <img src="icons/FORTIZ.jpeg" alt="Logo Empresa" 
+        <img src="icons/FORTIZ.jpeg" alt="Logo Empresa">
 
       </div>
 
@@ -253,6 +253,26 @@
                    <input id="clienteDireccion" placeholder="Dirección de entrega">
 
                    <span id="pdfDireccion" class="textoPDF"></span>
+
+                </td>
+
+            </tr>
+
+            <!-- NUEVO: Selector de Estado de Pago integrado dentro de la sección de cliente -->
+
+            <tr>
+
+                <td><strong>Estado Pago</strong></td>
+
+                <td>
+
+                    <select id="selectEstadoPago" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
+
+                        <option value="Pagado">Pagado (De Contado)</option>
+
+                        <option value="Pendiente">Pendiente (Por Cobrar)</option>
+
+                    </select>
 
                 </td>
 
@@ -409,3 +429,4 @@
 </body>
 
 </html>
+
