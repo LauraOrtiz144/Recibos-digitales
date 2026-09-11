@@ -26,6 +26,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const urlCliente = localStorage.getItem("urlClienteAPI");
   const sesionActiva = localStorage.getItem("sesionActiva");
   const nombreEmpleado = localStorage.getItem("empleado");
+  const firmaVendedorGuardada = localStorage.getItem("firma_vendedor_base64");
 
   // 1. Verificación de activación
   if (!urlCliente) {
@@ -39,7 +40,13 @@ window.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // 3. Entorno de trabajo activo
+  // 3. Verificación de firma del vendedor (Si no existe, obliga a registrarla una vez)
+  if (!firmaVendedorGuardada) {
+    mostrarVista("configFirmaVista"); // Asegúrate de tener una vista o modal en tu HTML para esto
+    return;
+  }
+
+  // 4. Entorno de trabajo activo
   mostrarVista("catalogoVista");
   
   const elNombreEmpresa = document.getElementById("empresaNombre");
@@ -47,7 +54,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     elNombreEmpresa.innerText = `Empresa de ${nombreEmpleado || "Trabajador"}`;
   }
 
-  // 🚀 CARGA INSTANTÁNEA DESDE CACHÉ (Evita pantalla en blanco en iPhone)
+  // 🚀 CARGA INSTANTÁNEA DESDE CACHÉ
   const productosCache = localStorage.getItem("cache_productos");
   if (productosCache) {
     try {
@@ -61,6 +68,18 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Sincronización silenciosa con la nube de fondo
   await cargarInventarioDesdeNube();
 });
+
+// Función para guardar la firma del vendedor por primera vez sin hacer ventas falsas
+function guardarFirmaVendedorInicial() {
+  const canvasConfig = document.getElementById("canvasFirmaConfig");
+  if (!canvasConfig) return;
+  
+  const dataURL = canvasConfig.toDataURL("image/png");
+  localStorage.setItem("firma_vendedor_base64", dataURL);
+  
+  alert("¡Firma guardada correctamente!");
+  location.reload(); // Recarga y entra directo al sistema
+}
 
 /* ==========================================
    MÓDULO DE ACTIVACIÓN Y LOGIN
@@ -128,6 +147,11 @@ function login() {
 }
 
 function iniciarEntornoTrabajo() {
+  const firmaVendedorGuardada = localStorage.getItem("firma_vendedor_base64");
+  if (!firmaVendedorGuardada) {
+    mostrarVista("configFirmaVista");
+    return;
+  }
   mostrarVista("catalogoVista");
   cargarInventarioDesdeNube();
 }
@@ -334,7 +358,7 @@ document.addEventListener("DOMContentLoaded", () => {
 async function verHistorial() {
     mostrarVista("historialVista");
     const lista = document.getElementById("listaHistorial");
-    const spanTotalDia = document.getElementById("totalDia"); // Puedes renombrar este span en tu HTML si gustas, o dejarlo como "totalMes"
+    const spanTotalDia = document.getElementById("totalDia");
     if (!lista) return;
 
     lista.innerHTML = "<p style='text-align:center;'>Cargando historial del mes...</p>";
@@ -350,12 +374,10 @@ async function verHistorial() {
             const rol = localStorage.getItem("rol") || "empleado";
             const empleadoActual = localStorage.getItem("empleado") || "";
 
-            // 1. OBTENER EL MES Y AÑO ACTUAL
             const fechaActual = new Date();
-            const mesActual = fechaActual.getMonth(); // 0 = Enero, 1 = Febrero, etc.
+            const mesActual = fechaActual.getMonth();
             const anioActual = fechaActual.getFullYear();
 
-            // 2. FILTRAR POR ROL Y POR EL MES EN CURSO
             let ventasMostrar = resultado.historial.filter(item => {
                 const fechaItem = new Date(item.fecha);
                 const coincideMes = fechaItem.getMonth() === mesActual && fechaItem.getFullYear() === anioActual;
@@ -381,7 +403,6 @@ async function verHistorial() {
                 div.className = "historial-item";
                 div.style.cssText = "background: white; margin-bottom: 12px; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid #2980b9;";
                 
-                // NUEVO: Configuración visual del estado de pago
                 const esPendiente = item.estadoPago === "Pendiente";
                 const colorFondoEstado = esPendiente ? "#e74c3c" : "#27ae60";
                 const textoEstado = esPendiente ? "POR COBRAR" : "PAGADO";
@@ -417,7 +438,7 @@ async function verHistorial() {
 }
 
 /* ==========================================
-   GENERADOR PDF Y COMPARTIR
+   GENERADOR PDF Y COMPARTIR (CON FIRMA FIJA VENDEDOR)
    ================================---------- */
 function prepararDocumentoPDF() {
     const cliente = document.getElementById("clienteNombre").value || "Cliente";
@@ -485,18 +506,25 @@ function prepararDocumentoPDF() {
     doc.text(`TOTAL: $${formatoMoneda(total)}`, 145, startY, { align: "left" });
 
     startY += 30;
-    doc.line(14, startY, 95, startY);
-    doc.line(114, startY, 195, startY);
+    doc.line(14, startY, 95, startY);       // Línea para "Entregó" (Vendedor)
+    doc.line(114, startY, 195, startY);     // Línea para "Recibió" (Cliente)
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.text("Entregó", 14, startY + 4);
     doc.text("Recibió", 114, startY + 4);
 
+    // 1. PINTAR LA FIRMA FIJA DEL VENDEDOR (IZQUIERDA - Entregó)
+    const firmaVendedorData = localStorage.getItem("firma_vendedor_base64");
+    if (firmaVendedorData) {
+        doc.addImage(firmaVendedorData, 'PNG', 20, startY - 22, 50, 20);
+    }
+
+    // 2. PINTAR LA FIRMA DEL CLIENTE EN VIVO (DERECHA - Recibió)
     const canvasFirma = document.getElementById("firmaCanvas");
     if (canvasFirma) {
-        const firmaImgData = canvasFirma.toDataURL("image/png");
-        doc.addImage(firmaImgData, 'PNG', 120, startY - 22, 50, 20);
+        const firmaClienteData = canvasFirma.toDataURL("image/png");
+        doc.addImage(firmaClienteData, 'PNG', 120, startY - 22, 50, 20);
     }
 
     return { doc, nombreArchivo, numeroFormateado };
@@ -551,13 +579,11 @@ function guardarVentaEnNube() {
     cantidad: item.cantidad
   }));
 
-  // 1. Capturamos los campos localmente incluyendo el estado de pago
   const nombreCliente = document.getElementById("clienteNombre") ? document.getElementById("clienteNombre").value.trim() : "";
   const telCliente = document.getElementById("clienteTelefono") ? document.getElementById("clienteTelefono").value.trim() : "";
   const dirCliente = document.getElementById("clienteDireccion") ? document.getElementById("clienteDireccion").value.trim() : "";
   const estadoPagoSeleccionado = document.getElementById("selectEstadoPago") ? document.getElementById("selectEstadoPago").value : "Pagado";
 
-  // 2. El paquete para la nube (Google Sheets) ahora incluye el estadoPago
   const payload = {
     accion: "registrarRemisionMasiva",
     items: itemsMinimos,
@@ -567,14 +593,13 @@ function guardarVentaEnNube() {
     estadoPago: estadoPagoSeleccionado
   };
 
-  // 3. Guardamos en la memoria local CON teléfono y dirección para que sí se autocompleten en la app
   if (nombreCliente) {
     guardarClienteFrecuente(nombreCliente, telCliente, dirCliente);
   }
 
   factura = [];
   actualizarFactura();
-  limpiarFirma();
+  limpiarFirma(); // Limpia solo la firma del cliente para la próxima venta
   
   const inputNombre = document.getElementById("clienteNombre");
   const inputTel = document.getElementById("clienteTelefono");
@@ -591,7 +616,6 @@ function guardarVentaEnNube() {
   if (elemNum1) elemNum1.innerText = formatoNum;
   if (elemNum2) elemNum2.innerText = formatoNum;
 
-  // Envío a la nube
   const url = `${urlAPI}?accion=registrarRemisionMasiva&datos=${encodeURIComponent(JSON.stringify(payload))}`;
   fetch(url, { mode: 'no-cors' }).catch(err => {
     console.log("Sincronización en segundo plano");
@@ -601,8 +625,9 @@ function guardarVentaEnNube() {
     cargarInventarioDesdeNube();
   }, 1500);
 }
+
 /* ==========================================
-   CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN
+   CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN (CLIENTE)
    ================================---------- */
 const canvas = document.getElementById("firmaCanvas");
 let ctx = canvas ? canvas.getContext("2d") : null;
@@ -639,280 +664,43 @@ if (canvas && ctx) {
     });
 }
 
+// Configuración adicional para el canvas de registro inicial de la firma del vendedor
+const canvasConfig = document.getElementById("firmaCanvasConfig");
+let ctxConfig = canvasConfig ? canvasConfig.getContext("2d") : null;
+let dibujandoConfig = false;
+
+if (canvasConfig && ctxConfig) {
+    ctxConfig.lineWidth = 3;
+    canvasConfig.addEventListener("mousedown", () => dibujandoConfig = true);
+    canvasConfig.addEventListener("mouseup", () => { dibujandoConfig = false; ctxConfig.beginPath(); });
+    canvasConfig.addEventListener("mousemove", (e) => {
+        if (!dibujandoConfig) return;
+        ctxConfig.lineCap = "round";
+        ctxConfig.lineTo(e.offsetX, e.offsetY);
+        ctxConfig.stroke();
+        ctxConfig.beginPath();
+        ctxConfig.moveTo(e.offsetX, e.offsetY);
+    });
+    canvasConfig.addEventListener("touchstart", (e) => { dibujandoConfig = true; e.preventDefault(); });
+    canvasConfig.addEventListener("touchend", () => { dibujandoConfig = false; ctxConfig.beginPath(); });
+    canvasConfig.addEventListener("touchmove", (e) => {
+        if (!dibujandoConfig) return;
+        const rect = canvasConfig.getBoundingClientRect();
+        const touch = e.touches[0];
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        ctxConfig.lineCap = "round";
+        ctxConfig.lineTo(x, y);
+        ctxConfig.stroke();
+        ctxConfig.beginPath();
+        ctxConfig.moveTo(x, y);
+        e.preventDefault();
+    });
+}
+
 function limpiarFirma() {
     if (canvas && ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-}
-
-// --- AUTOCOMPLETADO DE CLIENTES FRECUENTES ---
-document.addEventListener("DOMContentLoaded", () => {
-  actualizarDatalistClientes();
-  
-  const inputNombre = document.getElementById("clienteNombre");
-  if (inputNombre) {
-    inputNombre.addEventListener("input", function() {
-      autoCompletarCliente(this.value);
-    });
-  }
-});
-
-function actualizarDatalistClientes() {
-  const datalist = document.getElementById("clientesList");
-  if (!datalist) return;
-  
-  const clientes = JSON.parse(localStorage.getItem('clientesFrecuentes') || '[]');
-  datalist.innerHTML = "";
-  
-  clientes.forEach(c => {
-    const option = document.createElement("option");
-    option.value = c.nombre; 
-    datalist.appendChild(option);
-  });
-}
-
-function autoCompletarCliente(nombreIngresado) {
-  if (!nombreIngresado) return;
-  const clientes = JSON.parse(localStorage.getItem('clientesFrecuentes') || '[]');
-  
-  const clienteEncontrado = clientes.find(c => c.nombre.toLowerCase() === nombreIngresado.toLowerCase());
-  
-  if (clienteEncontrado) {
-    const inputTel = document.getElementById("clienteTelefono");
-    const inputDir = document.getElementById("clienteDireccion");
-    
-    if (inputTel && !inputTel.value) inputTel.value = clienteEncontrado.telefono || "";
-    if (inputDir && !inputDir.value) inputDir.value = clienteEncontrado.direccion || "";
-  }
-}
-
-function guardarClienteFrecuente(nombre, telefono, direccion) {
-  if (!nombre) return;
-  let clientes = JSON.parse(localStorage.getItem('clientesFrecuentes') || '[]');
-  
-  let index = clientes.findIndex(c => c.nombre.toLowerCase() === nombre.toLowerCase());
-  
-  const clienteData = {
-    nombre: nombre.trim(),
-    telefono: telefono ? telefono.trim() : "",
-    direccion: direccion ? direccion.trim() : ""
-  };
-  
-  if (index >= 0) {
-    clientes[index] = clienteData; 
-  } else {
-    clientes.push(clienteData);    
-  }
-  
-  localStorage.setItem('clientesFrecuentes', JSON.stringify(clientes));
-  actualizarDatalistClientes();
-}
-
-/* ==========================================
-   DASHBOARD Y REPORTES DIARIOS
-   ================================---------- */
-async function abrirDashboard() {
-    mostrarVista("dashboardVista");
-    const elTotalHoy = document.getElementById("dashTotalHoy");
-    const elTopProd = document.getElementById("dashTopProducto");
-    const elDivEmpleados = document.getElementById("dashVentasEmpleados");
-
-    if (!elTotalHoy) return;
-
-    elTotalHoy.innerText = "Calculando...";
-    if (elTopProd) elTopProd.innerText = "Calculando...";
-    if (elDivEmpleados) elDivEmpleados.innerHTML = "<p style='color: #666; font-size: 0.9rem;'>Cargando datos...</p>";
-
-    const urlAPI = obtenerUrlAPI();
-    if (!urlAPI) return;
-
-    try {
-        const respuesta = await fetch(`${urlAPI}?accion=obtenerHistorial`, { redirect: 'follow' });
-        const resultado = await respuesta.json();
-
-        if (!resultado.success || !resultado.historial) {
-            elTotalHoy.innerText = "$0";
-            if (elTopProd) elTopProd.innerText = "Sin datos";
-            if (elDivEmpleados) elDivEmpleados.innerHTML = "<p>No se pudo cargar el historial.</p>";
-            return;
-        }
-
-        const historial = resultado.historial;
-        const hoyStr = new Date().toDateString();
-
-        let totalHoy = 0;
-        let conteoProductos = {};
-        let ventasEmpleados = {};
-
-        historial.forEach(item => {
-            const fechaItem = new Date(item.fecha);
-            
-            if (fechaItem.toDateString() === hoyStr) {
-                totalHoy += Number(item.subtotal) || 0;
-            }
-
-            const prodNombre = item.producto || "Desconocido";
-            const cant = Number(item.cantidad) || 0;
-            conteoProductos[prodNombre] = (conteoProductos[prodNombre] || 0) + cant;
-
-            const empNombre = item.empleado || "Sin asignar";
-            ventasEmpleados[empNombre] = (ventasEmpleados[empNombre] || 0) + (Number(item.subtotal) || 0);
-        });
-
-        elTotalHoy.innerText = `$${formatoMoneda(totalHoy)}`;
-
-        let productoEstrella = "Ninguno";
-        let maxCantidad = 0;
-        for (let [prod, cant] of Object.entries(conteoProductos)) {
-            if (cant > maxCantidad) {
-                maxCantidad = cant;
-                productoEstrella = `${prod} (${cant} unidades)`;
-            }
-        }
-        if (elTopProd) elTopProd.innerText = productoEstrella;
-
-        if (elDivEmpleados) {
-            elDivEmpleados.innerHTML = "";
-            const empleadosKeys = Object.keys(ventasEmpleados);
-            
-            if (empleadosKeys.length === 0) {
-                elDivEmpleados.innerHTML = "<p style='color: #666;'>No hay registros de empleados.</p>";
-            } else {
-                empleadosKeys.forEach(emp => {
-                    const subDiv = document.createElement("div");
-                    subDiv.style.cssText = "display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 0.9rem;";
-                    subDiv.innerHTML = `<span><b>${emp}</b></span> <span style="color: #27ae60; font-weight: bold;">$${formatoMoneda(ventasEmpleados[emp])}</span>`;
-                    elDivEmpleados.appendChild(subDiv);
-                });
-            }
-        }
-
-    } catch (error) {
-        console.error("Error al generar el dashboard:", error);
-        elTotalHoy.innerText = "$0";
-        if (elTopProd) elTopProd.innerText = "Error de conexión";
-        if (elDivEmpleados) elDivEmpleados.innerHTML = "<p style='color: red;'>Error al conectar con la nube.</p>";
-    }
-}
-
-async function descargarHistorialPDF() {
-    const urlAPI = obtenerUrlAPI();
-    if (!urlAPI) {
-        alert("No hay conexión configurada.");
-        return;
-    }
-
-    try {
-        const respuesta = await fetch(`${urlAPI}?accion=obtenerHistorial`, { redirect: 'follow' });
-        const resultado = await respuesta.json();
-
-        if (!resultado.success || !resultado.historial) {
-            alert("No hay datos en el historial para descargar.");
-            return;
-        }
-
-        const fechaActual = new Date();
-        const mesActual = fechaActual.getMonth();
-        const anioActual = fechaActual.getFullYear();
-        const rol = localStorage.getItem("rol") || "empleado";
-        const empleadoActual = localStorage.getItem("empleado") || "";
-        
-        // Filtramos también el PDF para que descargue solo el mes actual
-        let ventasMostrar = resultado.historial.filter(item => {
-            const fechaItem = new Date(item.fecha);
-            const coincideMes = fechaItem.getMonth() === mesActual && fechaItem.getFullYear() === anioActual;
-            
-            if (!coincideMes) return false;
-
-            if (rol === "empleado") {
-                return item.empleado.trim().toLowerCase() === empleadoActual.trim().toLowerCase();
-            }
-            return true;
-        });
-
-        if (ventasMostrar.length === 0) {
-            alert("No hay ventas registradas en este mes para generar el reporte.");
-            return;
-        }
-
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(16);
-        doc.text("REPORTE MENSUAL DE REMISIONES", 14, 20);
-
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.text(`Generado el: ${new Date().toLocaleDateString("es-CO")} - ${new Date().toLocaleTimeString()}`, 14, 26);
-        doc.text("NIT: 900.000.000-0 | Bogotá D.C.", 14, 31);
-        
-        doc.setLineWidth(0.5);
-        doc.line(14, 35, 196, 35);
-
-        let y = 42;
-        let sumaTotalPDF = 0;
-
-        ventasMostrar.forEach((item, index) => {
-            if (y > 260) {
-                doc.addPage();
-                y = 20;
-            }
-
-            sumaTotalPDF += Number(item.subtotal) || 0;
-            const numRemisionStr = String(item.numRemision || (index + 1)).padStart(4, '0');
-
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(10);
-            doc.text(`Remisión #${numRemisionStr}`, 14, y);
-            
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(9);
-            doc.text(`Fecha: ${new Date(item.fecha).toLocaleString("es-CO")}`, 115, y);
-            doc.text(`Emp: ${item.empleado || 'N/A'}`, 165, y);
-
-            y += 5;
-            doc.text(`Producto: ${item.producto || 'N/A'}`, 14, y);
-            
-            y += 5;
-            doc.text(`Cant: ${item.cantidad || 0}`, 14, y);
-            doc.text(`Subtotal: $${formatoMoneda(item.subtotal || 0)}`, 165, y, { align: "right" });
-
-            y += 3;
-            doc.setLineWidth(0.2);
-            doc.setDrawColor(220, 220, 220);
-            doc.line(14, y, 196, y);
-            y += 6;
-        });
-
-        if (y > 270) { doc.addPage(); y = 20; }
-        y += 4;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.text(`TOTAL MES: $${formatoMoneda(sumaTotalPDF)}`, 196, y, { align: "right" });
-
-        const pdfBlob = doc.output('blob');
-        const archivo = new File([pdfBlob], "Reporte_Mensual_Remisiones.pdf", { type: "application/pdf" });
-
-        if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
-            try {
-                await navigator.share({
-                    files: [archivo],
-                    title: "Reporte Mensual",
-                    text: "Reporte mensual de remisiones."
-                });
-            } catch (err) {
-                console.log("Compartir cancelado.", err);
-            }
-        } else {
-            const enlace = document.createElement('a');
-            enlace.href = URL.createObjectURL(pdfBlob);
-            enlace.download = "Reporte_Mensual_Remisiones.pdf";
-            enlace.click();
-        }
-    } catch (error) {
-        console.error("Error al generar PDF de historial:", error);
-        alert("Error al generar el reporte PDF.");
     }
 }
 
