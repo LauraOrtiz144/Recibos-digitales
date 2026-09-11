@@ -84,6 +84,13 @@
 
       <input type="password" id="pin" placeholder="PIN de acceso">
 
+      <div id="seccionFirmaUnica" style="display:none; margin: 15px 0; text-align: center;">
+        <p style="font-size: 13px; color: #555; margin-bottom: 5px;">Dibuja la firma del administrador/vendedor (Primera vez):</p>
+        <canvas id="canvasFirmaLogin" width="280" height="120" style="border: 1px dashed #ccc; background: #fafafa; border-radius: 4px;"></canvas>
+        <br>
+        <button type="button" class="btn-secundario" onclick="limpiarCanvasLogin()" style="font-size: 12px; padding: 4px 8px; margin-top: 5px;">Borrar firma</button>
+      </div>
+
       <button class="btn-primary" onclick="login()">Entrar</button>
 
     </div>
