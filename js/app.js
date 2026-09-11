@@ -36,6 +36,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   // 2. Verificación de sesión
   if (!sesionActiva) {
     mostrarVista("loginVista");
+    verificarSiRequiereFirmaLogin(); // Comprobar si hay que mostrar el canvas de firma en el login
     return;
   }
 
@@ -92,6 +93,7 @@ async function activar() {
       
       alert("¡Activado correctamente!");
       mostrarVista("loginVista");
+      verificarSiRequiereFirmaLogin();
     } else {
       alert("Error: " + resultado.message);
     }
@@ -107,11 +109,31 @@ function login() {
 
   const pinJefe = localStorage.getItem("pinJefe") || "9999";
   const pinEmpleado = localStorage.getItem("pinEmpleado") || "1234";
+  
+  const firmaGuardadaLocal = localStorage.getItem("firmaVendedorGuardada");
+  let firmaBase64 = "";
+
+  // Si aún no está guardada la firma corporativa, es obligatoria en este primer login
+  if (!firmaGuardadaLocal) {
+    const canvasLogin = document.getElementById("canvasFirmaLogin");
+    if (!canvasLogin || !ctxLoginLogin) {
+      alert("Por favor dibuja la firma corporativa.");
+      return;
+    }
+    firmaBase64 = canvasLogin.toDataURL("image/png");
+    
+    // Validación básica para verificar que no esté vacío
+    if (firmaBase64.length < 3000) {
+      alert("Debes dibujar la firma del vendedor/propietario para continuar.");
+      return;
+    }
+  }
 
   if (pinIngresado === pinJefe) {
     localStorage.setItem("sesionActiva", "true");
     localStorage.setItem("rol", "jefe");
     localStorage.setItem("empleado", "Administrador");
+    procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal);
     iniciarEntornoTrabajo();
   } else if (pinIngresado === pinEmpleado) {
     if (!nombreInput) {
@@ -121,9 +143,29 @@ function login() {
     localStorage.setItem("sesionActiva", "true");
     localStorage.setItem("rol", "empleado");
     localStorage.setItem("empleado", nombreInput);
+    procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal);
     iniciarEntornoTrabajo();
   } else {
     alert("PIN incorrecto.");
+  }
+}
+
+function procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal) {
+  if (!firmaGuardadaLocal && firmaBase64) {
+    localStorage.setItem("firmaVendedorGuardada", "true");
+    
+    const urlAPI = obtenerUrlAPI();
+    const payload = {
+      accion: "guardarFirmaCorporativa",
+      firmaCorporativa: firmaBase64
+    };
+
+    fetch(urlAPI, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(err => console.log("Sincronización de firma en segundo plano", err));
   }
 }
 
@@ -135,6 +177,7 @@ function iniciarEntornoTrabajo() {
 function cerrarSesion() {
   localStorage.removeItem("sesionActiva");
   mostrarVista("loginVista");
+  verificarSiRequiereFirmaLogin(); // Al cerrar sesión y volver al login, revisa si debe mostrar el canvas (si se borró caché mostraría de nuevo, de lo contrario lo omite)
 }
 
 /* ==========================================
@@ -151,6 +194,10 @@ function mostrarVista(vista) {
     const botones = document.getElementById("botonesAccion");
     if (botones) {
         botones.style.display = (vista === "facturacionVista") ? "block" : "none";
+    }
+
+    if (vista === "loginVista") {
+      verificarSiRequiereFirmaLogin();
     }
 }
 
@@ -482,15 +529,15 @@ function prepararDocumentoPDF() {
     doc.text(`TOTAL: $${formatoMoneda(total)}`, 145, startY, { align: "left" });
 
     startY += 30;
-    doc.line(14, startY, 95, startY);        // Línea para "Entregó" (Vendedor)
-    doc.line(114, startY, 195, startY);      // Línea para "Recibió" (Cliente)
+    doc.line(14, startY, 95, startY);      // Línea para "Entregó" (Vendedor)
+    doc.line(114, startY, 195, startY);    // Línea para "Recibió" (Cliente)
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.text("Entregó", 14, startY + 4);
     doc.text("Recibió", 114, startY + 4);
 
-    // PINTAR LA FIRMA DEL CLIENTE EN EL PDF
+    // PINTAR LA FIRMA DEL CLIENTE EN EL PDF (Mantiene tu lógica original intacta)
     const canvasFirma = document.getElementById("firmaCanvas");
     if (canvasFirma) {
         const firmaClienteData = canvasFirma.toDataURL("image/png");
@@ -624,7 +671,7 @@ function guardarFirmaCorporativaEnNube() {
 }
 
 /* ==========================================
-   CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN (CLIENTE)
+   CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN (CLIENTE - REMISIÓN)
    ================================---------- */
 const canvas = document.getElementById("firmaCanvas");
 let ctx = canvas ? canvas.getContext("2d") : null;
@@ -666,3 +713,63 @@ function limpiarFirma() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 }
+
+/* ==========================================
+   CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN (LOGIN - VENDEDOR / PROPIETARIO)
+   ================================---------- */
+let canvasLogin = null;
+let ctxLoginLogin = null;
+let dibujandoLogin = false;
+
+function verificarSiRequiereFirmaLogin() {
+  const firmaGuardada = localStorage.getItem("firmaVendedorGuardada");
+  const contenedorSeccionFirma = document.getElementById("seccionFirmaUnica");
+
+  if (!firmaGuardada) {
+    if (contenedorSeccionFirma) contenedorSeccionFirma.style.display = "block";
+    inicializarCanvasLogin();
+  } else {
+    if (contenedorSeccionFirma) contenedorSeccionFirma.style.display = "none";
+  }
+}
+
+function inicializarCanvasLogin() {
+  canvasLogin = document.getElementById("canvasFirmaLogin");
+  if (!canvasLogin) return;
+  ctxLoginLogin = canvasLogin.getContext("2d");
+  ctxLoginLogin.lineWidth = 3;
+
+  canvasLogin.onmousedown = () => dibujandoLogin = true;
+  canvasLogin.onmouseup = () => { dibujandoLogin = false; ctxLoginLogin.beginPath(); };
+  canvasLogin.onmousemove = (e) => {
+    if (!dibujandoLogin) return;
+    ctxLoginLogin.lineCap = "round";
+    ctxLoginLogin.lineTo(e.offsetX, e.offsetY);
+    ctxLoginLogin.stroke();
+    ctxLoginLogin.beginPath();
+    ctxLoginLogin.moveTo(e.offsetX, e.offsetY);
+  };
+
+  canvasLogin.ontouchstart = (e) => { dibujandoLogin = true; e.preventDefault(); };
+  canvasLogin.ontouchend = () => { dibujandoLogin = false; ctxLoginLogin.beginPath(); };
+  canvasLogin.ontouchmove = (e) => {
+    if (!dibujandoLogin) return;
+    const rect = canvasLogin.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    ctxLoginLogin.lineCap = "round";
+    ctxLoginLogin.lineTo(x, y);
+    ctxLoginLogin.stroke();
+    ctxLoginLogin.beginPath();
+    ctxLoginLogin.moveTo(x, y);
+    e.preventDefault();
+  };
+}
+
+function limpiarCanvasLogin() {
+  if (canvasLogin && ctxLoginLogin) {
+    ctxLoginLogin.clearRect(0, 0, canvasLogin.width, canvasLogin.height);
+  }
+}
+
