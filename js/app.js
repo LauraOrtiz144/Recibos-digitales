@@ -337,10 +337,10 @@ document.addEventListener("DOMContentLoaded", () => {
 async function verHistorial() {
     mostrarVista("historialVista");
     const lista = document.getElementById("listaHistorial");
-    const spanTotalDia = document.getElementById("totalDia");
+    const spanTotalDia = document.getElementById("totalDia"); // Puedes renombrar este span en tu HTML si gustas, o dejarlo como "totalMes"
     if (!lista) return;
 
-    lista.innerHTML = "<p style='text-align:center;'>Cargando historial...</p>";
+    lista.innerHTML = "<p style='text-align:center;'>Cargando historial del mes...</p>";
     const urlAPI = obtenerUrlAPI();
 
     try {
@@ -349,25 +349,36 @@ async function verHistorial() {
 
         if (resultado.success) {
             lista.innerHTML = "";
-            let sumaTotalDia = 0;
+            let sumaTotalMes = 0;
             const rol = localStorage.getItem("rol") || "empleado";
             const empleadoActual = localStorage.getItem("empleado") || "";
 
-            let ventasMostrar = resultado.historial;
-            if (rol === "empleado") {
-                ventasMostrar = resultado.historial.filter(item => 
-                    item.empleado.trim().toLowerCase() === empleadoActual.trim().toLowerCase()
-                );
-            }
+            // 1. OBTENER EL MES Y AÑO ACTUAL
+            const fechaActual = new Date();
+            const mesActual = fechaActual.getMonth(); // 0 = Enero, 1 = Febrero, etc.
+            const anioActual = fechaActual.getFullYear();
+
+            // 2. FILTRAR POR ROL Y POR EL MES EN CURSO
+            let ventasMostrar = resultado.historial.filter(item => {
+                const fechaItem = new Date(item.fecha);
+                const coincideMes = fechaItem.getMonth() === mesActual && fechaItem.getFullYear() === anioActual;
+                
+                if (!coincideMes) return false;
+
+                if (rol === "empleado") {
+                    return item.empleado.trim().toLowerCase() === empleadoActual.trim().toLowerCase();
+                }
+                return true;
+            });
 
             if (ventasMostrar.length === 0) {
-                lista.innerHTML = "<p style='text-align:center;'>No hay ventas registradas.</p>";
+                lista.innerHTML = "<p style='text-align:center;'>No hay ventas registradas en este mes.</p>";
                 if (spanTotalDia) spanTotalDia.innerText = "0";
                 return;
             }
 
             ventasMostrar.forEach(item => {
-                sumaTotalDia += Number(item.subtotal) || 0; 
+                sumaTotalMes += Number(item.subtotal) || 0; 
                 const numRemisionStr = String(item.numRemision).padStart(4, '0');
                 const div = document.createElement("div");
                 div.className = "historial-item";
@@ -388,7 +399,7 @@ async function verHistorial() {
                 lista.appendChild(div);
             });
 
-            if (spanTotalDia) spanTotalDia.innerText = formatoMoneda(sumaTotalDia);
+            if (spanTotalDia) spanTotalDia.innerText = formatoMoneda(sumaTotalMes);
         } else {
             lista.innerHTML = "<p>No se pudo cargar el historial.</p>";
         }
@@ -783,7 +794,6 @@ async function descargarHistorialPDF() {
     }
 
     try {
-        // 1. Descargamos el historial directamente de la nube para asegurar que tenga datos
         const respuesta = await fetch(`${urlAPI}?accion=obtenerHistorial`, { redirect: 'follow' });
         const resultado = await respuesta.json();
 
@@ -792,33 +802,40 @@ async function descargarHistorialPDF() {
             return;
         }
 
-        let ventasMostrar = resultado.historial;
+        const fechaActual = new Date();
+        const mesActual = fechaActual.getMonth();
+        const anioActual = fechaActual.getFullYear();
         const rol = localStorage.getItem("rol") || "empleado";
         const empleadoActual = localStorage.getItem("empleado") || "";
         
-        // Filtrar si es empleado regular
-        if (rol === "empleado") {
-            ventasMostrar = resultado.historial.filter(item => 
-                item.empleado.trim().toLowerCase() === empleadoActual.trim().toLowerCase()
-            );
-        }
+        // Filtramos también el PDF para que descargue solo el mes actual
+        let ventasMostrar = resultado.historial.filter(item => {
+            const fechaItem = new Date(item.fecha);
+            const coincideMes = fechaItem.getMonth() === mesActual && fechaItem.getFullYear() === anioActual;
+            
+            if (!coincideMes) return false;
+
+            if (rol === "empleado") {
+                return item.empleado.trim().toLowerCase() === empleadoActual.trim().toLowerCase();
+            }
+            return true;
+        });
 
         if (ventasMostrar.length === 0) {
-            alert("No hay ventas registradas para este usuario.");
+            alert("No hay ventas registradas en este mes para generar el reporte.");
             return;
         }
 
-        // 2. Construcción limpia del PDF con jsPDF nativo
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(16);
-        doc.text("REPORTE DE HISTORIAL DE REMISIONES", 14, 20);
+        doc.text("REPORTE MENSUAL DE REMISIONES", 14, 20);
 
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
-        doc.text(`Fecha de generación: ${new Date().toLocaleDateString("es-CO")} - ${new Date().toLocaleTimeString()}`, 14, 26);
+        doc.text(`Generado el: ${new Date().toLocaleDateString("es-CO")} - ${new Date().toLocaleTimeString()}`, 14, 26);
         doc.text("NIT: 900.000.000-0 | Bogotá D.C.", 14, 31);
         
         doc.setLineWidth(0.5);
@@ -828,7 +845,6 @@ async function descargarHistorialPDF() {
         let sumaTotalPDF = 0;
 
         ventasMostrar.forEach((item, index) => {
-            // Salto de página automático si se llena la hoja
             if (y > 260) {
                 doc.addPage();
                 y = 20;
@@ -860,23 +876,21 @@ async function descargarHistorialPDF() {
             y += 6;
         });
 
-        // Total general al final del reporte
         if (y > 270) { doc.addPage(); y = 20; }
         y += 4;
         doc.setFont("helvetica", "bold");
         doc.setFontSize(11);
-        doc.text(`TOTAL GENERAL: $${formatoMoneda(sumaTotalPDF)}`, 196, y, { align: "right" });
+        doc.text(`TOTAL MES: $${formatoMoneda(sumaTotalPDF)}`, 196, y, { align: "right" });
 
-        // 3. Opciones inteligentes: Compartir como archivo real (WhatsApp) o Descargar
         const pdfBlob = doc.output('blob');
-        const archivo = new File([pdfBlob], "Historial_Remisiones.pdf", { type: "application/pdf" });
+        const archivo = new File([pdfBlob], "Reporte_Mensual_Remisiones.pdf", { type: "application/pdf" });
 
         if (navigator.canShare && navigator.canShare({ files: [archivo] })) {
             try {
                 await navigator.share({
                     files: [archivo],
-                    title: 'Historial de Remisiones',
-                    text: 'Adjunto el reporte de historial de ventas.'
+                    title: 'Reporte Mensual',
+                    text: 'Adjunto el reporte de ventas del mes.'
                 });
                 return;
             } catch (err) {
@@ -884,8 +898,7 @@ async function descargarHistorialPDF() {
             }
         }
 
-        // Descarga directa si está en PC
-        doc.save("Historial_Remisiones.pdf");
+        doc.save("Reporte_Mensual_Remisiones.pdf");
 
     } catch (error) {
         console.error(error);
