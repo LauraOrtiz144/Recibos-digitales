@@ -203,7 +203,6 @@ function mostrarCatalogo() {
       <h3>${p.nombre}</h3>
       <p>Stock: ${p.cantidad_actual}</p>
       <p class="precio">$${formatoMoneda(p.precio)}</p>
-      <button class="btnAgregarCat">Agregar</button>
     `;
 
     div.querySelector(".btnAgregarCat").onclick = () => agregarProductoFactura(p);
