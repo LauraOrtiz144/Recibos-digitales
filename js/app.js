@@ -26,7 +26,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   const urlCliente = localStorage.getItem("urlClienteAPI");
   const sesionActiva = localStorage.getItem("sesionActiva");
   const nombreEmpleado = localStorage.getItem("empleado");
-  const firmaVendedorGuardada = localStorage.getItem("firma_vendedor_base64");
 
   // 1. Verificación de activación
   if (!urlCliente) {
@@ -40,13 +39,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // 3. Verificación de firma del vendedor (Si no existe, obliga a registrarla una vez)
-  if (!firmaVendedorGuardada) {
-    mostrarVista("configFirmaVista"); // Asegúrate de tener una vista o modal en tu HTML para esto
-    return;
-  }
-
-  // 4. Entorno de trabajo activo
+  // 3. Entorno de trabajo activo
   mostrarVista("catalogoVista");
   
   const elNombreEmpresa = document.getElementById("empresaNombre");
@@ -68,18 +61,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Sincronización silenciosa con la nube de fondo
   await cargarInventarioDesdeNube();
 });
-
-// Función para guardar la firma del vendedor por primera vez sin hacer ventas falsas
-function guardarFirmaVendedorInicial() {
-  const canvasConfig = document.getElementById("canvasFirmaConfig");
-  if (!canvasConfig) return;
-  
-  const dataURL = canvasConfig.toDataURL("image/png");
-  localStorage.setItem("firma_vendedor_base64", dataURL);
-  
-  alert("¡Firma guardada correctamente!");
-  location.reload(); // Recarga y entra directo al sistema
-}
 
 /* ==========================================
    MÓDULO DE ACTIVACIÓN Y LOGIN
@@ -147,11 +128,6 @@ function login() {
 }
 
 function iniciarEntornoTrabajo() {
-  const firmaVendedorGuardada = localStorage.getItem("firma_vendedor_base64");
-  if (!firmaVendedorGuardada) {
-    mostrarVista("configFirmaVista");
-    return;
-  }
   mostrarVista("catalogoVista");
   cargarInventarioDesdeNube();
 }
@@ -438,7 +414,7 @@ async function verHistorial() {
 }
 
 /* ==========================================
-   GENERADOR PDF Y COMPARTIR (CON FIRMA FIJA VENDEDOR)
+   GENERADOR PDF Y COMPARTIR
    ================================---------- */
 function prepararDocumentoPDF() {
     const cliente = document.getElementById("clienteNombre").value || "Cliente";
@@ -506,21 +482,15 @@ function prepararDocumentoPDF() {
     doc.text(`TOTAL: $${formatoMoneda(total)}`, 145, startY, { align: "left" });
 
     startY += 30;
-    doc.line(14, startY, 95, startY);       // Línea para "Entregó" (Vendedor)
-    doc.line(114, startY, 195, startY);     // Línea para "Recibió" (Cliente)
+    doc.line(14, startY, 95, startY);        // Línea para "Entregó" (Vendedor)
+    doc.line(114, startY, 195, startY);      // Línea para "Recibió" (Cliente)
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.text("Entregó", 14, startY + 4);
     doc.text("Recibió", 114, startY + 4);
 
-    // 1. PINTAR LA FIRMA FIJA DEL VENDEDOR (IZQUIERDA - Entregó)
-    const firmaVendedorData = localStorage.getItem("firma_vendedor_base64");
-    if (firmaVendedorData) {
-        doc.addImage(firmaVendedorData, 'PNG', 20, startY - 22, 50, 20);
-    }
-
-    // 2. PINTAR LA FIRMA DEL CLIENTE EN VIVO (DERECHA - Recibió)
+    // PINTAR LA FIRMA DEL CLIENTE EN EL PDF
     const canvasFirma = document.getElementById("firmaCanvas");
     if (canvasFirma) {
         const firmaClienteData = canvasFirma.toDataURL("image/png");
@@ -599,7 +569,7 @@ function guardarVentaEnNube() {
 
   factura = [];
   actualizarFactura();
-  limpiarFirma(); // Limpia solo la firma del cliente para la próxima venta
+  limpiarFirma(); 
   
   const inputNombre = document.getElementById("clienteNombre");
   const inputTel = document.getElementById("clienteTelefono");
@@ -664,43 +634,8 @@ if (canvas && ctx) {
     });
 }
 
-// Configuración adicional para el canvas de registro inicial de la firma del vendedor
-const canvasConfig = document.getElementById("firmaCanvasConfig");
-let ctxConfig = canvasConfig ? canvasConfig.getContext("2d") : null;
-let dibujandoConfig = false;
-
-if (canvasConfig && ctxConfig) {
-    ctxConfig.lineWidth = 3;
-    canvasConfig.addEventListener("mousedown", () => dibujandoConfig = true);
-    canvasConfig.addEventListener("mouseup", () => { dibujandoConfig = false; ctxConfig.beginPath(); });
-    canvasConfig.addEventListener("mousemove", (e) => {
-        if (!dibujandoConfig) return;
-        ctxConfig.lineCap = "round";
-        ctxConfig.lineTo(e.offsetX, e.offsetY);
-        ctxConfig.stroke();
-        ctxConfig.beginPath();
-        ctxConfig.moveTo(e.offsetX, e.offsetY);
-    });
-    canvasConfig.addEventListener("touchstart", (e) => { dibujandoConfig = true; e.preventDefault(); });
-    canvasConfig.addEventListener("touchend", () => { dibujandoConfig = false; ctxConfig.beginPath(); });
-    canvasConfig.addEventListener("touchmove", (e) => {
-        if (!dibujandoConfig) return;
-        const rect = canvasConfig.getBoundingClientRect();
-        const touch = e.touches[0];
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
-        ctxConfig.lineCap = "round";
-        ctxConfig.lineTo(x, y);
-        ctxConfig.stroke();
-        ctxConfig.beginPath();
-        ctxConfig.moveTo(x, y);
-        e.preventDefault();
-    });
-}
-
 function limpiarFirma() {
     if (canvas && ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 }
-
