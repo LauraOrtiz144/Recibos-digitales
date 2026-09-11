@@ -384,6 +384,11 @@ async function verHistorial() {
                 div.className = "historial-item";
                 div.style.cssText = "background: white; margin-bottom: 12px; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid #2980b9;";
                 
+                // NUEVO: Configuración visual del estado de pago
+                const esPendiente = item.estadoPago === "Pendiente";
+                const colorFondoEstado = esPendiente ? "#e74c3c" : "#27ae60";
+                const textoEstado = esPendiente ? "POR COBRAR" : "PAGADO";
+
                 div.innerHTML = `
                     <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                         <span style="font-size: 0.85rem; color: #2980b9; font-weight: bold;">Remisión #${numRemisionStr}</span>
@@ -391,9 +396,14 @@ async function verHistorial() {
                     </div>
                     <p style="margin: 0 0 5px 0; font-size: 0.9rem;"><b>Empleado:</b> ${item.empleado}</p>
                     <p style="margin: 0 0 5px 0; font-size: 0.95rem; color: #2c3e50;"><b>Producto:</b> ${item.producto}</p>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.9rem; border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px;">
-                        <span>Cant: <b>${item.cantidad}</b></span>
-                        <span style="color: #27ae60; font-weight: bold;">Subtotal: $${formatoMoneda(item.subtotal)}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px;">
+                        <div>
+                          <span>Cant: <b>${item.cantidad}</b></span>
+                        </div>
+                        <div>
+                          <span style="background: ${colorFondoEstado}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 8px;">${textoEstado}</span>
+                          <span style="color: #27ae60; font-weight: bold;">Subtotal: $${formatoMoneda(item.subtotal)}</span>
+                        </div>
                     </div>
                 `;
                 lista.appendChild(div);
@@ -544,18 +554,20 @@ function guardarVentaEnNube() {
     cantidad: item.cantidad
   }));
 
-  // 1. Capturamos los 3 campos localmente para que el autocompletado funcione
+  // 1. Capturamos los campos localmente incluyendo el estado de pago
   const nombreCliente = document.getElementById("clienteNombre") ? document.getElementById("clienteNombre").value.trim() : "";
   const telCliente = document.getElementById("clienteTelefono") ? document.getElementById("clienteTelefono").value.trim() : "";
   const dirCliente = document.getElementById("clienteDireccion") ? document.getElementById("clienteDireccion").value.trim() : "";
+  const estadoPagoSeleccionado = document.getElementById("selectEstadoPago") ? document.getElementById("selectEstadoPago").value : "Pagado";
 
-  // 2. El paquete para la nube (Google Sheets) LLEVA SOLO EL NOMBRE como pediste
+  // 2. El paquete para la nube (Google Sheets) ahora incluye el estadoPago
   const payload = {
     accion: "registrarRemisionMasiva",
     items: itemsMinimos,
     empleado: empleadoActual,
     numRemision: numeroRemision,
-    cliente: nombreCliente || "Mostrador / Genérico"
+    cliente: nombreCliente || "Mostrador / Genérico",
+    estadoPago: estadoPagoSeleccionado
   };
 
   // 3. Guardamos en la memoria local CON teléfono y dirección para que sí se autocompleten en la app
@@ -889,19 +901,21 @@ async function descargarHistorialPDF() {
             try {
                 await navigator.share({
                     files: [archivo],
-                    title: 'Reporte Mensual',
-                    text: 'Adjunto el reporte de ventas del mes.'
+                    title: "Reporte Mensual",
+                    text: "Reporte mensual de remisiones."
                 });
-                return;
             } catch (err) {
-                if (err.name === 'AbortError') return;
+                console.log("Compartir cancelado.", err);
             }
+        } else {
+            const enlace = document.createElement('a');
+            enlace.href = URL.createObjectURL(pdfBlob);
+            enlace.download = "Reporte_Mensual_Remisiones.pdf";
+            enlace.click();
         }
-
-        doc.save("Reporte_Mensual_Remisiones.pdf");
-
     } catch (error) {
-        console.error(error);
-        alert("Error de conexión al generar el PDF del historial.");
+        console.error("Error al generar PDF de historial:", error);
+        alert("Error al generar el reporte PDF.");
     }
 }
+
