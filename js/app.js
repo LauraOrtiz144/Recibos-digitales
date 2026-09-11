@@ -204,8 +204,6 @@ function mostrarCatalogo() {
       <p>Stock: ${p.cantidad_actual}</p>
       <p class="precio">$${formatoMoneda(p.precio)}</p>
     `;
-
-    div.querySelector(".btnAgregarCat").onclick = () => agregarProductoFactura(p);
     contenedor.appendChild(div);
   });
 }
