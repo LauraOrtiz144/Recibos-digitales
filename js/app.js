@@ -199,6 +199,7 @@ function login() {
 function procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal) {
   if (!firmaGuardadaLocal && firmaBase64) {
     localStorage.setItem("firmaVendedorGuardada", "true");
+    localStorage.setItem("firmaVendedorBase64", firmaBase64); // Guardado clave para el PDF
     
     const urlAPI = obtenerUrlAPI();
     const payload = {
@@ -535,10 +536,19 @@ function prepararDocumentoPDF() {
     doc.text("Entregó", 14, startY + 4);
     doc.text("Recibió", 114, startY + 4);
 
+    // 1. Colocar automáticamente la firma del vendedor/propietario (Login) en "Entregó"
+    const firmaVendedorBase64 = localStorage.getItem("firmaVendedorBase64"); 
+    if (firmaVendedorBase64) {
+        doc.addImage(firmaVendedorBase64, 'PNG', 18, startY - 22, 50, 20);
+    }
+
+    // 2. Colocar la firma del cliente en "Recibió" (si se desea)
     const canvasFirma = document.getElementById("firmaCanvas");
     if (canvasFirma) {
         const firmaClienteData = canvasFirma.toDataURL("image/png");
-        doc.addImage(firmaClienteData, 'PNG', 120, startY - 22, 50, 20);
+        if (firmaClienteData.length > 1500) {
+            doc.addImage(firmaClienteData, 'PNG', 114, startY - 22, 50, 20);
+        }
     }
 
     return { doc, nombreArchivo, numeroFormateado };
@@ -749,6 +759,4 @@ function limpiarCanvasLogin() {
     ctxLogin.clearRect(0, 0, canvasLogin.width, canvasLogin.height);
   }
 }
-
-
 
