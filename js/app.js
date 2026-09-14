@@ -603,6 +603,13 @@ function guardarVentaEnNube() {
   const dirCliente = document.getElementById("clienteDireccion") ? document.getElementById("clienteDireccion").value.trim() : "";
   const estadoPagoSeleccionado = document.getElementById("selectEstadoPago") ? document.getElementById("selectEstadoPago").value : "Pagado";
 
+  // 1. CAPTURAR LA FIRMA DEL CANVAS
+  let firmaBase64 = "";
+  const canvasFirma = document.getElementById("firmaCanvas");
+  if (canvasFirma) {
+    firmaBase64 = canvasFirma.toDataURL("image/png");
+  }
+
   const payload = {
     accion: "registrarRemisionMasiva",
     items: itemsMinimos,
@@ -611,7 +618,8 @@ function guardarVentaEnNube() {
     cliente: nombreCliente || "Mostrador / Genérico",
     telefono: telCliente,
     direccion: dirCliente,
-    estadoPago: estadoPagoSeleccionado
+    estadoPago: estadoPagoSeleccionado,
+    firma: firmaBase64 // <-- 2. AÑADIR LA FIRMA AL PAYLOAD QUE VIAJA A LA NUBE
   };
 
   factura = [];
@@ -620,6 +628,9 @@ function guardarVentaEnNube() {
   if (document.getElementById("clienteNombre")) document.getElementById("clienteNombre").value = "";
   if (document.getElementById("clienteTelefono")) document.getElementById("clienteTelefono").value = "";
   if (document.getElementById("clienteDireccion")) document.getElementById("clienteDireccion").value = "";
+  
+  // Limpiar también el canvas visualmente después de guardar
+  limpiarFirma();
   
   numeroRemision++;
   const formatoNum = String(numeroRemision).padStart(4, '0');
@@ -641,38 +652,6 @@ function guardarVentaEnNube() {
     cargarInventarioDesdeNube();
   }, 1500);
 }
-
-function guardarFirmaCorporativaEnNube() {
-  const canvasFirma = document.getElementById("firmaCanvas");
-  if (!canvasFirma) {
-    alert("No se encontró el lienzo de la firma.");
-    return;
-  }
-
-  const firmaBase64 = canvasFirma.toDataURL("image/png");
-  const urlAPI = obtenerUrlAPI();
-  if (!urlAPI) return;
-
-  const payload = {
-    accion: "guardarFirmaCorporativa",
-    firmaCorporativa: firmaBase64
-  };
-
-  fetch(urlAPI, {
-    method: "POST",
-    mode: "no-cors",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  }).then(() => {
-    alert("¡Firma corporativa guardada de forma segura en la nube del cliente!");
-  }).catch(err => {
-    console.error("Error guardando la firma:", err);
-    alert("Hubo un error al guardar la firma.");
-  });
-}
-
 /* ==========================================
    CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN (CLIENTE - REMISIÓN)
    ================================---------- */
