@@ -353,30 +353,21 @@ function agregarProductoFactura(producto, cantidad = 1) {
 async function irAFacturacion() {
     mostrarVista("facturacionVista");
     await actualizarNumeroRemisionDesdeNube();
+    
     const fechaEl = document.getElementById("fechaActual");
     if (fechaEl) fechaEl.innerText = new Date().toLocaleDateString("es-CO");
-}
 
-function actualizarFactura() {
-    const tabla = document.getElementById("tablaFactura");
-    if (!tabla) return;
-    tabla.innerHTML = "";
-
-    total = 0;
-    factura.forEach(item => {
-        total += Number(item.subtotal);
-        const fila = document.createElement("tr");
-        fila.innerHTML = `
-            <td>${item.nombre}</td>
-            <td>${item.cantidad}</td>
-            <td>$${formatoMoneda(item.precio)}</td>
-            <td>$${formatoMoneda(item.subtotal)}</td>
-        `;
-        tabla.appendChild(fila);
-    });
-
-    const elTotal = document.getElementById("total");
-    if (elTotal) elTotal.innerText = formatoMoneda(total);
+    // TRAER Y MOSTRAR LA FIRMA CORPORATIVA EN PANTALLA (Desde la celda J2 de la nube)
+    const imgEntrego = document.getElementById("imgFirmaEntrego");
+    if (imgEntrego) {
+        const firmaNube = await obtenerFirmaDesdeNube(); // Esta función ya consulta la celda J2
+        if (firmaNube) {
+            imgEntrego.src = firmaNube;
+            imgEntrego.style.display = "block"; // La muestra visualmente en la página
+        } else {
+            imgEntrego.style.display = "none";
+        }
+    }
 }
 
 /* ==========================================
