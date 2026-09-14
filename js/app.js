@@ -163,7 +163,7 @@ function procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal) {
     fetch(urlAPI, {
       method: "POST",
       mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": text/plain;charset=utf-8" },
       body: JSON.stringify(payload)
     }).catch(err => console.log("Sincronización de firma en segundo plano", err));
   }
