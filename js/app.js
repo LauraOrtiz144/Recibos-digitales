@@ -149,7 +149,7 @@ async function activar() {
   }
 }
 
-function login() {
+async function login() {
   const pinIngresado = document.getElementById("pin").value.trim();
   const nombreInput = document.getElementById("nombreLogin")?.value.trim();
 
@@ -159,27 +159,34 @@ function login() {
   const firmaGuardadaLocal = localStorage.getItem("firmaVendedorGuardada");
   let firmaBase64 = "";
 
-  // Si aún no está guardada la firma corporativa, es obligatoria en este primer login
-  if (!firmaGuardadaLocal) {
+  // Validamos si el sistema requiere la firma (primera vez)
+  const contenedorSeccionFirma = document.getElementById("seccionFirmaUnica");
+  const esVisibleFirma = contenedorSeccionFirma && contenedorSeccionFirma.style.display !== "none";
+
+  if (esVisibleFirma && !firmaGuardadaLocal) {
     const canvasLoginElem = document.getElementById("canvasFirmaLogin");
-    if (!canvasLoginElem || !ctxLogin) {
-      alert("Por favor dibuja la firma corporativa.");
+    if (!canvasLoginElem) {
+      alert("Error: No se encontró el cuadro de firma.");
       return;
     }
+    
     firmaBase64 = canvasLoginElem.toDataURL("image/png");
     
-    // Validación ajustada para evitar falsos negativos en pantallas pequeñas
     if (firmaBase64.length < 1500) {
-      alert("Debes dibujar la firma del vendedor/propietario para continuar.");
+      alert("Debes dibujar la firma del administrador/vendedor para continuar.");
       return;
     }
+    
+    procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal);
+  } else {
+    firmaBase64 = localStorage.getItem("firmaVendedorBase64") || "";
   }
 
+  // Validar PINs
   if (pinIngresado === pinJefe) {
     localStorage.setItem("sesionActiva", "true");
     localStorage.setItem("rol", "jefe");
     localStorage.setItem("empleado", "Administrador");
-    procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal);
     iniciarEntornoTrabajo();
   } else if (pinIngresado === pinEmpleado) {
     if (!nombreInput) {
@@ -189,7 +196,6 @@ function login() {
     localStorage.setItem("sesionActiva", "true");
     localStorage.setItem("rol", "empleado");
     localStorage.setItem("empleado", nombreInput);
-    procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal);
     iniciarEntornoTrabajo();
   } else {
     alert("PIN incorrecto.");
@@ -199,7 +205,7 @@ function login() {
 function procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal) {
   if (!firmaGuardadaLocal && firmaBase64) {
     localStorage.setItem("firmaVendedorGuardada", "true");
-    localStorage.setItem("firmaVendedorBase64", firmaBase64); // Guardado clave para el PDF
+    localStorage.setItem("firmaVendedorBase64", firmaBase64); 
     
     const urlAPI = obtenerUrlAPI();
     const payload = {
@@ -453,10 +459,10 @@ async function verHistorial() {
       } else {
             lista.innerHTML = "<p>No se pudo cargar el historial.</p>";
       }
-  } catch (error) {
+    } catch (error) {
         console.error(error);
         lista.innerHTML = "<p>Error de conexión al obtener el historial.</p>";
-  }
+    }
 }
 
 /* ==========================================
@@ -758,5 +764,20 @@ function limpiarCanvasLogin() {
   if (canvasLogin && ctxLogin) {
     ctxLogin.clearRect(0, 0, canvasLogin.width, canvasLogin.height);
   }
+}
+
+async function obtenerFirmaDesdeNube() {
+  const urlAPI = obtenerUrlAPI();
+  if (!urlAPI) return "";
+  try {
+    const respuesta = await fetch(`${urlAPI}?accion=obtenerFirmaCorporativa`, { redirect: 'follow' });
+    const resultado = await respuesta.json();
+    if (resultado.success && resultado.firma) {
+      return resultado.firma; 
+    }
+  } catch (e) {
+    console.error("No se pudo obtener la firma de la nube", e);
+  }
+  return "";
 }
 
