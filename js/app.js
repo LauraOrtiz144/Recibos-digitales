@@ -36,7 +36,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   // 2. Verificación de sesión
   if (!sesionActiva) {
     mostrarVista("loginVista");
-    verificarSiRequiereFirmaLogin(); // Comprobar si hay que mostrar el canvas de firma en el login
+    verificarSiRequiereFirmaLogin();
     return;
   }
 
@@ -61,6 +61,52 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Sincronización silenciosa con la nube de fondo
   await cargarInventarioDesdeNube();
+
+  // --- CONFIGURACIÓN DE EVENTOS DEL DOM (Buscador y Botones) ---
+  const inputBusq = document.getElementById("buscarProducto");
+  if (inputBusq) {
+      inputBusq.addEventListener("input", function () {
+          const texto = this.value.toLowerCase().trim();
+          const resultados = document.getElementById("resultados");
+          if (!resultados) return;
+
+          resultados.innerHTML = "";
+          if (texto === "") return;
+
+          productos.forEach(p => {
+              if (p.nombre.toLowerCase().includes(texto)) {
+                  const div = document.createElement("div");
+                  div.className = "resultadoProducto";
+                  div.innerHTML = `
+                      <div class="resultadoInfo">
+                          <h4>${p.nombre}</h4>
+                          <p>Stock: ${p.cantidad_actual} | $${formatoMoneda(p.precio)}</p>
+                      </div>
+                      <div class="accionesProducto">
+                          <input type="number" class="cantidadProducto" value="1" min="1" max="${p.cantidad_actual}">
+                          <button class="btnAgregar">Agregar</button>
+                      </div>
+                  `;
+
+                  const cantidadInput = div.querySelector(".cantidadProducto");
+                  div.querySelector(".btnAgregar").onclick = () => {
+                      agregarProductoFactura(p, cantidadInput.value);
+                      inputBusq.value = "";
+                      resultados.innerHTML = "";
+                  };
+
+                  resultados.appendChild(div);
+              }
+          });
+      });
+  }
+
+  const btnGuardarProd = document.getElementById("guardarProducto");
+  if (btnGuardarProd) {
+    btnGuardarProd.addEventListener("click", () => {
+      alert("Para mantener el inventario sincronizado, agrega o edita los productos directamente en tu Google Sheet.");
+    });
+  }
 });
 
 /* ==========================================
@@ -116,14 +162,14 @@ function login() {
   // Si aún no está guardada la firma corporativa, es obligatoria en este primer login
   if (!firmaGuardadaLocal) {
     const canvasLoginElem = document.getElementById("canvasFirmaLogin");
-    if (!canvasLoginElem || !ctxLoginLogin) {
+    if (!canvasLoginElem || !ctxLogin) {
       alert("Por favor dibuja la firma corporativa.");
       return;
     }
     firmaBase64 = canvasLoginElem.toDataURL("image/png");
     
-    // Validación básica para verificar que no esté vacío
-    if (firmaBase64.length < 3000) {
+    // Validación ajustada para evitar falsos negativos en pantallas pequeñas
+    if (firmaBase64.length < 1500) {
       alert("Debes dibujar la firma del vendedor/propietario para continuar.");
       return;
     }
@@ -327,56 +373,6 @@ function actualizarFactura() {
 }
 
 /* ==========================================
-   BUSCADOR EN VIVO
-   ================================---------- */
-document.addEventListener("DOMContentLoaded", () => {
-    const inputBusq = document.getElementById("buscarProducto");
-    if (inputBusq) {
-      inputBusq.addEventListener("input", function () {
-          const texto = this.value.toLowerCase().trim();
-          const resultados = document.getElementById("resultados");
-          if (!resultados) return;
-
-          resultados.innerHTML = "";
-          if (texto === "") return;
-
-          productos.forEach(p => {
-              if (p.nombre.toLowerCase().includes(texto)) {
-                  const div = document.createElement("div");
-                  div.className = "resultadoProducto";
-                  div.innerHTML = `
-                      <div class="resultadoInfo">
-                          <h4>${p.nombre}</h4>
-                          <p>Stock: ${p.cantidad_actual} | $${formatoMoneda(p.precio)}</p>
-                      </div>
-                      <div class="accionesProducto">
-                          <input type="number" class="cantidadProducto" value="1" min="1" max="${p.cantidad_actual}">
-                          <button class="btnAgregar">Agregar</button>
-                      </div>
-                  `;
-
-                  const cantidadInput = div.querySelector(".cantidadProducto");
-                  div.querySelector(".btnAgregar").onclick = () => {
-                      agregarProductoFactura(p, cantidadInput.value);
-                      inputBusq.value = "";
-                      resultados.innerHTML = "";
-                  };
-
-                  resultados.appendChild(div);
-              }
-          });
-      });
-    }
-
-    const btnGuardarProd = document.getElementById("guardarProducto");
-    if (btnGuardarProd) {
-      btnGuardarProd.addEventListener("click", () => {
-        alert("Para mantener el inventario sincronizado, agrega o edita los productos directamente en tu Google Sheet.");
-      });
-    }
-});
-
-/* ==========================================
    HISTORIAL DE VENTAS
    ================================---------- */
 async function verHistorial() {
@@ -454,7 +450,7 @@ async function verHistorial() {
 
             if (spanTotalDia) spanTotalDia.innerText = formatoMoneda(sumaTotalMes);
       } else {
-          lista.innerHTML = "<p>No se pudo cargar el historial.</p>";
+            lista.innerHTML = "<p>No se pudo cargar el historial.</p>";
       }
   } catch (error) {
         console.error(error);
@@ -603,7 +599,6 @@ function guardarVentaEnNube() {
   const dirCliente = document.getElementById("clienteDireccion") ? document.getElementById("clienteDireccion").value.trim() : "";
   const estadoPagoSeleccionado = document.getElementById("selectEstadoPago") ? document.getElementById("selectEstadoPago").value : "Pagado";
 
-  // 1. CAPTURAR LA FIRMA DEL CANVAS
   let firmaBase64 = "";
   const canvasFirma = document.getElementById("firmaCanvas");
   if (canvasFirma) {
@@ -619,7 +614,7 @@ function guardarVentaEnNube() {
     telefono: telCliente,
     direccion: dirCliente,
     estadoPago: estadoPagoSeleccionado,
-    firma: firmaBase64 // <-- 2. AÑADIR LA FIRMA AL PAYLOAD QUE VIAJA A LA NUBE
+    firma: firmaBase64 
   };
 
   factura = [];
@@ -629,7 +624,6 @@ function guardarVentaEnNube() {
   if (document.getElementById("clienteTelefono")) document.getElementById("clienteTelefono").value = "";
   if (document.getElementById("clienteDireccion")) document.getElementById("clienteDireccion").value = "";
   
-  // Limpiar también el canvas visualmente después de guardar
   limpiarFirma();
   
   numeroRemision++;
@@ -652,6 +646,7 @@ function guardarVentaEnNube() {
     cargarInventarioDesdeNube();
   }, 1500);
 }
+
 /* ==========================================
    CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN (CLIENTE - REMISIÓN)
    ================================---------- */
@@ -700,7 +695,7 @@ function limpiarFirma() {
    CONFIGURACIÓN DE FIRMA TÁCTIL / RATÓN (LOGIN - VENDEDOR / PROPIETARIO)
    ================================---------- */
 let canvasLogin = null;
-let ctxLoginLogin = null;
+let ctxLogin = null;
 let dibujandoLogin = false;
 
 function verificarSiRequiereFirmaLogin() {
@@ -718,40 +713,40 @@ function verificarSiRequiereFirmaLogin() {
 function inicializarCanvasLogin() {
   canvasLogin = document.getElementById("canvasFirmaLogin");
   if (!canvasLogin) return;
-  ctxLoginLogin = canvasLogin.getContext("2d");
-  ctxLoginLogin.lineWidth = 3;
+  ctxLogin = canvasLogin.getContext("2d");
+  ctxLogin.lineWidth = 3;
 
   canvasLogin.onmousedown = () => dibujandoLogin = true;
-  canvasLogin.onmouseup = () => { dibujandoLogin = false; ctxLoginLogin.beginPath(); };
+  canvasLogin.onmouseup = () => { dibujandoLogin = false; ctxLogin.beginPath(); };
   canvasLogin.onmousemove = (e) => {
     if (!dibujandoLogin) return;
-    ctxLoginLogin.lineCap = "round";
-    ctxLoginLogin.lineTo(e.offsetX, e.offsetY);
-    ctxLoginLogin.stroke();
-    ctxLoginLogin.beginPath();
-    ctxLoginLogin.moveTo(e.offsetX, e.offsetY);
+    ctxLogin.lineCap = "round";
+    ctxLogin.lineTo(e.offsetX, e.offsetY);
+    ctxLogin.stroke();
+    ctxLogin.beginPath();
+    ctxLogin.moveTo(e.offsetX, e.offsetY);
   };
 
   canvasLogin.ontouchstart = (e) => { dibujandoLogin = true; e.preventDefault(); };
-  canvasLogin.ontouchend = () => { dibujandoLogin = false; ctxLoginLogin.beginPath(); };
+  canvasLogin.ontouchend = () => { dibujandoLogin = false; ctxLogin.beginPath(); };
   canvasLogin.ontouchmove = (e) => {
     if (!dibujandoLogin) return;
     const rect = canvasLogin.getBoundingClientRect();
     const touch = e.touches[0];
     const x = touch.clientX - rect.left;
     const y = touch.clientY - rect.top;
-    ctxLoginLogin.lineCap = "round";
-    ctxLoginLogin.lineTo(x, y);
-    ctxLoginLogin.stroke();
-    ctxLoginLogin.beginPath();
-    ctxLoginLogin.moveTo(x, y);
+    ctxLogin.lineCap = "round";
+    ctxLogin.lineTo(x, y);
+    ctxLogin.stroke();
+    ctxLogin.beginPath();
+    ctxLogin.moveTo(x, y);
     e.preventDefault();
   };
 }
 
 function limpiarCanvasLogin() {
-  if (canvasLogin && ctxLoginLogin) {
-    ctxLoginLogin.clearRect(0, 0, canvasLogin.width, canvasLogin.height);
+  if (canvasLogin && ctxLogin) {
+    ctxLogin.clearRect(0, 0, canvasLogin.width, canvasLogin.height);
   }
 }
 
