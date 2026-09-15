@@ -358,7 +358,7 @@ async function irAFacturacion() {
     if (fechaEl) fechaEl.innerText = new Date().toLocaleDateString("es-CO");
 
     // TRAER Y MOSTRAR LA FIRMA CORPORATIVA EN PANTALLA (Desde la celda J2 de la nube)
-    const imgEntrego = document.getElementById("imgFirmaEntrego");
+    const imgEntrego = document.getElementById("imgFirmaVendedor");
     if (imgEntrego) {
         const firmaNube = await obtenerFirmaDesdeNube(); // Esta función ya consulta la celda J2
         if (firmaNube) {
