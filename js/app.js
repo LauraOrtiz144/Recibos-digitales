@@ -796,17 +796,14 @@ async function obtenerFirmaDesdeNube() {
 }
 
 /* ==========================================
-   ACTUALIZAR VISTA DE LA FACTURA / REMISIÓN
+   CARRITO Y FACTURACIÓN (Actualizado para tu HTML)
    ================================---------- */
 function actualizarFactura() {
     total = 0;
+    const cuerpoTabla = document.getElementById("tablaFactura");
     
-    // 1. Si tienes una tabla tradicional HTML para listar los items:
-    const cuerpoTabla = document.getElementById("cuerpoTablaFactura") || document.getElementById("tablaFactura");
-    
-    // 2. Si usas un contenedor genérico (divs):
-    const contenedorItems = document.getElementById("itemsFactura");
-    
+    if (!cuerpoTabla) return;
+
     let htmlTabla = "";
     
     factura.forEach((item, index) => {
@@ -816,38 +813,19 @@ function actualizarFactura() {
                 <td>${item.nombre}</td>
                 <td>${item.cantidad}</td>
                 <td>$${formatoMoneda(item.precio)}</td>
-                <td>$${formatoMoneda(item.subtotal)}</td>
-                <td><button type="button" onclick="eliminarItemFactura(${index})" style="background:#e74c3c; color:white; border:none; padding:2px 6px; border-radius:3px; cursor:pointer;">X</button></td>
+                <td>$${formatoMoneda(item.subtotal)}
+                    <button type="button" onclick="eliminarItemFactura(${index})" style="background:#e74c3c; color:white; border:none; padding:2px 6px; border-radius:3px; cursor:pointer; margin-left: 8px;">X</button>
+                </td>
             </tr>
         `;
     });
 
-    // Rellenar la tabla si existe en el HTML
-    if (cuerpoTabla) {
-        // Si el elemento es un <tbody>
-        if (cuerpoTabla.tagName === "TBODY") {
-            cuerpoTabla.innerHTML = htmlTabla;
-        } else {
-            // Si es una tabla completa o un contenedor
-            cuerpoTabla.innerHTML = `<table>${htmlTabla}</table>`;
-        }
-    }
+    cuerpoTabla.innerHTML = htmlTabla;
 
-    // Rellenar contenedor alternativo si tu diseño usa divs
-    if (contenedorItems && !cuerpoTabla) {
-        contenedorItems.innerHTML = factura.map((item, index) => `
-            <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; align-items: center;">
-                <span>${item.nombre} (x${item.cantidad})</span>
-                <span>$${formatoMoneda(item.subtotal)}</span>
-                <button type="button" onclick="eliminarItemFactura(${index})" style="background:#e74c3c; color:white; border:none; padding:2px 6px; border-radius:3px;">X</button>
-            </div>
-        `).join("");
-    }
-
-    // Actualizar los textos de total en la interfaz
-    const totalEl = document.getElementById("totalFactura") || document.getElementById("spanTotalFactura");
+    // Actualizar el total con el ID correcto de tu HTML (<span id="total">)
+    const totalEl = document.getElementById("total");
     if (totalEl) {
-        totalEl.innerText = `$${formatoMoneda(total)}`;
+        totalEl.innerText = formatoMoneda(total);
     }
 }
 
@@ -855,7 +833,4 @@ function eliminarItemFactura(index) {
     factura.splice(index, 1);
     actualizarFactura();
 }
-
-
-
 
