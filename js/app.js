@@ -796,45 +796,66 @@ async function obtenerFirmaDesdeNube() {
 }
 
 /* ==========================================
-   RENDERIZAR TABLA DE FACTURA / REMISIÓN
-   ========================================== */
+   ACTUALIZAR VISTA DE LA FACTURA / REMISIÓN
+   ================================---------- */
 function actualizarFactura() {
-    const tbody = document.getElementById("tablaFactura") || document.getElementById("facturaTabla");
-    const spanTotal = document.getElementById("total");
+    total = 0;
     
-    // Si usas otro ID para la tabla, ajústalo aquí
-    if (!tbody) {
-        console.warn("No se encontró el elemento de la tabla de factura en el HTML.");
-        return;
-    }
-
-    tbody.innerHTML = "";
-    total = 0; // Reiniciamos la variable global 'total'
-
+    // 1. Si tienes una tabla tradicional HTML para listar los items:
+    const cuerpoTabla = document.getElementById("cuerpoTablaFactura") || document.getElementById("tablaFactura");
+    
+    // 2. Si usas un contenedor genérico (divs):
+    const contenedorItems = document.getElementById("itemsFactura");
+    
+    let htmlTabla = "";
+    
     factura.forEach((item, index) => {
-        total += item.subtotal;
-
-        let fila = document.createElement("tr");
-        fila.innerHTML = `
-            <td>${item.nombre}</td>
-            <td>${item.cantidad}</td>
-            <td>$${formatoMoneda(item.precio)}</td>
-            <td>$${formatoMoneda(item.subtotal)}</td>
-            <td><button type="button" onclick="eliminarItemFactura(${index})" style="background:#e74c3c; color:white; border:none; padding:2px 6px; border-radius:4px;">X</button></td>
+        total += Number(item.subtotal) || 0;
+        htmlTabla += `
+            <tr>
+                <td>${item.nombre}</td>
+                <td>${item.cantidad}</td>
+                <td>$${formatoMoneda(item.precio)}</td>
+                <td>$${formatoMoneda(item.subtotal)}</td>
+                <td><button type="button" onclick="eliminarItemFactura(${index})" style="background:#e74c3c; color:white; border:none; padding:2px 6px; border-radius:3px; cursor:pointer;">X</button></td>
+            </tr>
         `;
-        tbody.appendChild(fila);
     });
 
-    if (spanTotal) {
-        spanTotal.innerText = formatoMoneda(total);
+    // Rellenar la tabla si existe en el HTML
+    if (cuerpoTabla) {
+        // Si el elemento es un <tbody>
+        if (cuerpoTabla.tagName === "TBODY") {
+            cuerpoTabla.innerHTML = htmlTabla;
+        } else {
+            // Si es una tabla completa o un contenedor
+            cuerpoTabla.innerHTML = `<table>${htmlTabla}</table>`;
+        }
+    }
+
+    // Rellenar contenedor alternativo si tu diseño usa divs
+    if (contenedorItems && !cuerpoTabla) {
+        contenedorItems.innerHTML = factura.map((item, index) => `
+            <div style="display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; align-items: center;">
+                <span>${item.nombre} (x${item.cantidad})</span>
+                <span>$${formatoMoneda(item.subtotal)}</span>
+                <button type="button" onclick="eliminarItemFactura(${index})" style="background:#e74c3c; color:white; border:none; padding:2px 6px; border-radius:3px;">X</button>
+            </div>
+        `).join("");
+    }
+
+    // Actualizar los textos de total en la interfaz
+    const totalEl = document.getElementById("totalFactura") || document.getElementById("spanTotalFactura");
+    if (totalEl) {
+        totalEl.innerText = `$${formatoMoneda(total)}`;
     }
 }
 
-// Función extra por si necesitas quitar un producto del carrito
 function eliminarItemFactura(index) {
     factura.splice(index, 1);
     actualizarFactura();
 }
+
 
 
 
