@@ -795,5 +795,46 @@ async function obtenerFirmaDesdeNube() {
   return "";
 }
 
+/* ==========================================
+   RENDERIZAR TABLA DE FACTURA / REMISIÓN
+   ========================================== */
+function actualizarFactura() {
+    const tbody = document.getElementById("tablaFactura") || document.getElementById("facturaTabla");
+    const spanTotal = document.getElementById("total");
+    
+    // Si usas otro ID para la tabla, ajústalo aquí
+    if (!tbody) {
+        console.warn("No se encontró el elemento de la tabla de factura en el HTML.");
+        return;
+    }
+
+    tbody.innerHTML = "";
+    total = 0; // Reiniciamos la variable global 'total'
+
+    factura.forEach((item, index) => {
+        total += item.subtotal;
+
+        let fila = document.createElement("tr");
+        fila.innerHTML = `
+            <td>${item.nombre}</td>
+            <td>${item.cantidad}</td>
+            <td>$${formatoMoneda(item.precio)}</td>
+            <td>$${formatoMoneda(item.subtotal)}</td>
+            <td><button type="button" onclick="eliminarItemFactura(${index})" style="background:#e74c3c; color:white; border:none; padding:2px 6px; border-radius:4px;">X</button></td>
+        `;
+        tbody.appendChild(fila);
+    });
+
+    if (spanTotal) {
+        spanTotal.innerText = formatoMoneda(total);
+    }
+}
+
+// Función extra por si necesitas quitar un producto del carrito
+function eliminarItemFactura(index) {
+    factura.splice(index, 1);
+    actualizarFactura();
+}
+
 
 
