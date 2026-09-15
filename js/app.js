@@ -357,15 +357,14 @@ async function irAFacturacion() {
     const fechaEl = document.getElementById("fechaActual");
     if (fechaEl) fechaEl.innerText = new Date().toLocaleDateString("es-CO");
 
-    // TRAER Y MOSTRAR LA FIRMA CORPORATIVA EN PANTALLA (Desde la celda J2 de la nube)
     const imgEntrego = document.getElementById("imgFirmaVendedor");
     if (imgEntrego) {
-        const firmaNube = await obtenerFirmaDesdeNube(); // Esta función ya consulta la celda J2
-        if (firmaNube && firmaNube.length > 50)) {
+        const firmaNube = await obtenerFirmaDesdeNube(); 
+        if (firmaNube && firmaNube.length > 50) {
             imgEntrego.src = firmaNube;
-            imgEntrego.style.display = "block"; // La muestra visualmente en la página
+            imgEntrego.style.display = "block"; 
         } else {
-            imgEntrego.style.display = "none";
+            imgEntrego.style.display = "none"; 
         }
     }
 }
@@ -764,15 +763,14 @@ async function obtenerFirmaDesdeNube() {
     const respuesta = await fetch(`${urlAPI}?accion=obtenerFirmaCorporativa`, { redirect: 'follow' });
     const resultado = await respuesta.json();
     if (resultado.success && resultado.urlFirma) {
-       let firma = resultado.urlFirma.trim();
-      // Asegurarnos de que tenga el prefijo de imagen base64 correcto si no lo trae
+      let firma = resultado.urlFirma.trim();
       if (!firma.startsWith("data:image")) {
         firma = "data:image/png;base64," + firma;
       }
-      return resultado.firma; 
+      return firma;  
     }
   } catch (e) {
-    console.error("No se pudo obtener la firma de la nube", e);
+    console.error("Aviso: No se pudo obtener la firma de la nube", e);
   }
   return "";
 }
