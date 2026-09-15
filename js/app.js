@@ -361,7 +361,7 @@ async function irAFacturacion() {
     const imgEntrego = document.getElementById("imgFirmaVendedor");
     if (imgEntrego) {
         const firmaNube = await obtenerFirmaDesdeNube(); // Esta función ya consulta la celda J2
-        if (firmaNube) {
+        if (firmaNube && firmaNube.length > 50)) {
             imgEntrego.src = firmaNube;
             imgEntrego.style.display = "block"; // La muestra visualmente en la página
         } else {
@@ -764,6 +764,11 @@ async function obtenerFirmaDesdeNube() {
     const respuesta = await fetch(`${urlAPI}?accion=obtenerFirmaCorporativa`, { redirect: 'follow' });
     const resultado = await respuesta.json();
     if (resultado.success && resultado.urlFirma) {
+       let firma = resultado.urlFirma.trim();
+      // Asegurarnos de que tenga el prefijo de imagen base64 correcto si no lo trae
+      if (!firma.startsWith("data:image")) {
+        firma = "data:image/png;base64," + firma;
+      }
       return resultado.firma; 
     }
   } catch (e) {
@@ -771,4 +776,6 @@ async function obtenerFirmaDesdeNube() {
   }
   return "";
 }
+
+
 
