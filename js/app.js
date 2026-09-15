@@ -360,10 +360,13 @@ async function irAFacturacion() {
     const imgEntrego = document.getElementById("imgFirmaVendedor");
     if (imgEntrego) {
         const firmaNube = await obtenerFirmaDesdeNube(); 
+        
         if (firmaNube && firmaNube.length > 50) {
             imgEntrego.src = firmaNube;
-            imgEntrego.style.display = "block"; 
+            imgEntrego.style.display = "block"; // Muestra la firma corporativa cargada desde J2
+            console.log("Firma corporativa aplicada correctamente en pantalla.");
         } else {
+            console.warn("La firma de la nube llegó vacía o incompleta.");
             imgEntrego.style.display = "none"; 
         }
     }
@@ -758,19 +761,36 @@ function limpiarCanvasLogin() {
 
 async function obtenerFirmaDesdeNube() {
   const urlAPI = obtenerUrlAPI();
-  if (!urlAPI) return "";
+  if (!urlAPI) {
+    console.warn("No hay URL de API configurada.");
+    return "";
+  }
+  
   try {
-    const respuesta = await fetch(`${urlAPI}?accion=obtenerFirmaCorporativa`, { redirect: 'follow' });
+    // Añadimos un parámetro de tiempo para evitar que el navegador guarde en caché un resultado viejo
+    const respuesta = await fetch(`${urlAPI}?accion=obtenerFirmaCorporativa&t=${Date.now()}`, { 
+      method: 'GET',
+      redirect: 'follow' 
+    });
+    
     const resultado = await respuesta.json();
-    if (resultado.success && resultado.urlFirma) {
-      let firma = resultado.urlFirma.trim();
-      if (!firma.startsWith("data:image")) {
-        firma = "data:image/png;base64," + firma;
+    console.log("Datos recibidos de Apps Script:", resultado); // MIRA ESTO EN LA CONSOLA SI PUEDES
+
+    // Verificamos si vino en 'urlFirma' o directamente en alguna otra propiedad
+    let base64Firma = resultado.urlFirma || resultado.firma || "";
+
+    if (base64Firma) {
+      base64Firma = base64Firma.trim();
+      // Si la celda ya tiene el formato data:image, lo retornamos directo
+      if (base64Firma.startsWith("data:image")) {
+        return base64Firma;
+      } else {
+        // Si por alguna razón solo se guardó el código plano sin el prefijo, se lo agregamos
+        return "data:image/png;base64," + base64Firma;
       }
-      return firma;  
     }
   } catch (e) {
-    console.error("Aviso: No se pudo obtener la firma de la nube", e);
+    console.error("Error al intentar obtener la firma corporativa:", e);
   }
   return "";
 }
