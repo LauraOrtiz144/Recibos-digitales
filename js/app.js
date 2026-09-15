@@ -763,7 +763,7 @@ async function obtenerFirmaDesdeNube() {
   try {
     const respuesta = await fetch(`${urlAPI}?accion=obtenerFirmaCorporativa`, { redirect: 'follow' });
     const resultado = await respuesta.json();
-    if (resultado.success && resultado.firma) {
+    if (resultado.success && resultado.urlFirma) {
       return resultado.firma; 
     }
   } catch (e) {
