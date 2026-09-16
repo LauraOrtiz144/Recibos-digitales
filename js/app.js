@@ -845,20 +845,42 @@ function eliminarItemFactura(index) {
 
 function descargarHistorialPDF() {
     const elemento = document.getElementById("historialPDF");
-    if (!elemento) return;
+    if (!elemento) {
+        alert("No se encontró el contenedor del historial.");
+        return;
+    }
 
     const opciones = {
-        margin:       10,
-        filename:     'Historial_Ventas_SOLMET.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        margin: 10,
+        filename: 'Historial_Ventas.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    // Usa html2pdf (librería cargada en tu index) para empaquetar la vista en PDF y abrir diálogo de descarga/guardar
-    html2pdf().from(elemento).set(opciones).save().catch(err => {
+    // Generar el PDF y manejarlo para móviles o escritorio
+    html2pdf().from(elemento).set(opciones).outputPdf('blob').then(async (pdfBlob) => {
+        const file = new File([pdfBlob], "Historial_Ventas.pdf", { type: "application/pdf" });
+
+        // Si estamos en un celular compatible con compartir archivos, usamos el menú nativo
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: "Historial de Ventas",
+                    text: "Aquí tienes el reporte del historial de ventas.",
+                    files: [file]
+                });
+                return;
+            } catch (e) {
+                console.log("Compartir cancelado o no disponible, intentando descarga directa.");
+            }
+        }
+
+        // Si es PC o no abrió el menú de compartir, disparamos la descarga tradicional
+        html2pdf().from(elemento).set(opciones).save();
+    }).catch(err => {
         console.error("Error al generar el PDF del historial:", err);
-        alert("No se pudo descargar el archivo PDF. Inténtalo de nuevo.");
+        alert("No se pudo generar el archivo PDF. Inténtalo de nuevo.");
     });
 }
 
