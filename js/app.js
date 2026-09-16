@@ -847,46 +847,37 @@ function eliminarItemFactura(index) {
     factura.splice(index, 1);
     actualizarFactura();
 }
-
+/* ==========================================
+   DESCARGAR HISTORIAL EN PDF (OPTIMIZADO)
+   ================================---------- */
 function descargarHistorialPDF() {
-    const elemento = document.getElementById("historialPDF");
+    const elemento = document.getElementById('historialPDF');
+    
     if (!elemento) {
-        alert("No se encontró el contenedor del historial.");
+        alert("No se encontró el contenido para exportar.");
         return;
     }
 
+    // Opciones estables para html2pdf que evitan páginas blancas
     const opciones = {
-        margin: 10,
-        filename: 'Historial_Ventas.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        margin:       10, // mm
+        filename:     'Historial_Ventas_' + new Date().toISOString().slice(0,10) + '.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { 
+            scale: 2, 
+            useCORS: true, 
+            letterRendering: true,
+            scrollY: 0
+        },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    // Generar el PDF y manejarlo para móviles o escritorio
-    html2pdf().from(elemento).set(opciones).outputPdf('blob').then(async (pdfBlob) => {
-        const file = new File([pdfBlob], "Historial_Ventas.pdf", { type: "application/pdf" });
+    // Forzar temporalmente estilos legibles para la captura del PDF
+    elemento.style.color = "#000000";
+    elemento.style.background = "#ffffff";
 
-        // Si estamos en un celular compatible con compartir archivos, usamos el menú nativo
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-                await navigator.share({
-                    title: "Historial de Ventas",
-                    text: "Aquí tienes el reporte del historial de ventas.",
-                    files: [file]
-                });
-                return;
-            } catch (e) {
-                console.log("Compartir cancelado o no disponible, intentando descarga directa.");
-            }
-        }
-
-        // Si es PC o no abrió el menú de compartir, disparamos la descarga tradicional
-        html2pdf().from(elemento).set(opciones).save();
-    }).catch(err => {
-        console.error("Error al generar el PDF del historial:", err);
-        alert("No se pudo generar el archivo PDF. Inténtalo de nuevo.");
+    html2pdf().from(elemento).set(opciones).save().then(() => {
+        // Restaurar estilos originales si es necesario
     });
 }
-
 
