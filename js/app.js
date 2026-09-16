@@ -159,7 +159,6 @@ async function login() {
   const firmaGuardadaLocal = localStorage.getItem("firmaVendedorGuardada");
   let firmaBase64 = "";
 
-  // Validamos si el sistema requiere la firma (primera vez)
   const contenedorSeccionFirma = document.getElementById("seccionFirmaUnica");
   const esVisibleFirma = contenedorSeccionFirma && contenedorSeccionFirma.style.display !== "none";
 
@@ -182,7 +181,6 @@ async function login() {
     firmaBase64 = localStorage.getItem("firmaVendedorBase64") || "";
   }
 
-  // Validar PINs
   if (pinIngresado === pinJefe) {
     localStorage.setItem("sesionActiva", "true");
     localStorage.setItem("rol", "jefe");
@@ -363,7 +361,7 @@ async function irAFacturacion() {
         
         if (firmaNube && firmaNube.length > 50) {
             imgEntrego.src = firmaNube;
-            imgEntrego.style.display = "block"; // Muestra la firma corporativa cargada desde J2
+            imgEntrego.style.display = "block";
             console.log("Firma corporativa aplicada correctamente en pantalla.");
         } else {
             console.warn("La firma de la nube llegó vacía o incompleta.");
@@ -373,12 +371,13 @@ async function irAFacturacion() {
 }
 
 /* ==========================================
-   HISTORIAL DE VENTAS
+   HISTORIAL DE VENTAS (CORREGIDO Y UNIFICADO)
    ================================---------- */
 function verHistorial() {
     mostrarVista('historialVista');
+    const urlAPI = obtenerUrlAPI();
+    if (!urlAPI) return;
     
-    // Asegúrate de usar tu URL de despliegue de Apps Script o tu variable global de API
     fetch(urlAPI + "?accion=obtenerHistorial")
         .then(res => res.json())
         .then(data => {
@@ -388,19 +387,19 @@ function verHistorial() {
             let contenedor = document.getElementById("listaHistorial");
             let spanTotalDia = document.getElementById("totalDia");
             
-            // Agrupar los productos por número de remisión
+            // Agrupar correctamente los productos por número de remisión para evitar duplicados en tarjetas
             let remisionesAgrupadas = {};
             let totalGeneralDia = 0;
 
             historial.forEach(item => {
-                let key = item.numRemisionStr;
+                let key = String(item.numRemisionStr).trim();
                 if (!remisionesAgrupadas[key]) {
                     remisionesAgrupadas[key] = {
                         numRemisionStr: item.numRemisionStr,
                         fecha: item.fecha ? new Date(item.fecha).toLocaleString() : "Fecha no disponible",
-                        empleado: item.empleado,
-                        cliente: item.cliente,
-                        estadoPago: item.estadoPago,
+                        empleado: item.empleado || "No especificado",
+                        cliente: item.cliente || "Mostrador",
+                        estadoPago: item.estadoPago || "Pagado",
                         items: [],
                         totalRemision: 0
                     };
@@ -418,7 +417,6 @@ function verHistorial() {
                 let rem = remisionesAgrupadas[key];
                 totalGeneralDia += rem.totalRemision;
 
-                // Color del badge según estado de pago
                 let badgeColor = rem.estadoPago === "Pagado" ? "#27ae60" : "#e67e22";
 
                 html += `
@@ -544,13 +542,11 @@ function prepararDocumentoPDF() {
     doc.text("Entregó", 14, startY + 4);
     doc.text("Recibió", 114, startY + 4);
 
-    // 1. Colocar automáticamente la firma del vendedor/propietario (Login) en "Entregó"
     const firmaVendedorBase64 = localStorage.getItem("firmaVendedorBase64"); 
     if (firmaVendedorBase64) {
         doc.addImage(firmaVendedorBase64, 'PNG', 18, startY - 22, 50, 20);
     }
 
-    // 2. Colocar la firma del cliente en "Recibió" (si se desea)
     const canvasFirma = document.getElementById("firmaCanvas");
     if (canvasFirma) {
         const firmaClienteData = canvasFirma.toDataURL("image/png");
@@ -776,25 +772,19 @@ async function obtenerFirmaDesdeNube() {
   }
   
   try {
-    // Añadimos un parámetro de tiempo para evitar que el navegador guarde en caché un resultado viejo
     const respuesta = await fetch(`${urlAPI}?accion=obtenerFirmaCorporativa&t=${Date.now()}`, { 
       method: 'GET',
       redirect: 'follow' 
     });
     
     const resultado = await respuesta.json();
-    console.log("Datos recibidos de Apps Script:", resultado); // MIRA ESTO EN LA CONSOLA SI PUEDES
-
-    // Verificamos si vino en 'urlFirma' o directamente en alguna otra propiedad
     let base64Firma = resultado.urlFirma || resultado.firma || "";
 
     if (base64Firma) {
       base64Firma = base64Firma.trim();
-      // Si la celda ya tiene el formato data:image, lo retornamos directo
       if (base64Firma.startsWith("data:image")) {
         return base64Firma;
       } else {
-        // Si por alguna razón solo se guardó el código plano sin el prefijo, se lo agregamos
         return "data:image/png;base64," + base64Firma;
       }
     }
@@ -805,7 +795,7 @@ async function obtenerFirmaDesdeNube() {
 }
 
 /* ==========================================
-   CARRITO Y FACTURACIÓN (Actualizado para tu HTML)
+   CARRITO Y FACTURACIÓN
    ================================---------- */
 function actualizarFactura() {
     total = 0;
@@ -831,7 +821,6 @@ function actualizarFactura() {
 
     cuerpoTabla.innerHTML = htmlTabla;
 
-    // Actualizar el total con el ID correcto de tu HTML (<span id="total">)
     const totalEl = document.getElementById("total");
     if (totalEl) {
         totalEl.innerText = formatoMoneda(total);
@@ -843,6 +832,9 @@ function eliminarItemFactura(index) {
     actualizarFactura();
 }
 
+/* ==========================================
+   DESCARGA Y VISUALIZACIÓN DE HISTORIAL PDF (MÓVIL / PC OPTIMIZADO)
+   ========================================== */
 function descargarHistorialPDF() {
     const elemento = document.getElementById("historialPDF");
     if (!elemento) {
@@ -858,31 +850,39 @@ function descargarHistorialPDF() {
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    // Generar el PDF y manejarlo para móviles o escritorio
+    // Usamos html2pdf de forma segura para móviles (creando blob sin forzar descargas bloqueadas)
     html2pdf().from(elemento).set(opciones).outputPdf('blob').then(async (pdfBlob) => {
         const file = new File([pdfBlob], "Historial_Ventas.pdf", { type: "application/pdf" });
 
-        // Si estamos en un celular compatible con compartir archivos, usamos el menú nativo
+        // Si el celular permite la API nativa de compartir (Android/iOS), abre el menú para guardar o enviar
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
                 await navigator.share({
                     title: "Historial de Ventas",
-                    text: "Aquí tienes el reporte del historial de ventas.",
+                    text: "Reporte del historial de ventas.",
                     files: [file]
                 });
                 return;
             } catch (e) {
-                console.log("Compartir cancelado o no disponible, intentando descarga directa.");
+                console.log("Compartir cancelado por el usuario.");
             }
         }
 
-        // Si es PC o no abrió el menú de compartir, disparamos la descarga tradicional
-        html2pdf().from(elemento).set(opciones).save();
+        // Si no soporta compartir nativo o se canceló, abre el PDF en una pestaña nueva para que el celular lo descargue o visualice sin fallar
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = 'Historial_Ventas.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
     }).catch(err => {
         console.error("Error al generar el PDF del historial:", err);
         alert("No se pudo generar el archivo PDF. Inténtalo de nuevo.");
     });
 }
-
 
 
