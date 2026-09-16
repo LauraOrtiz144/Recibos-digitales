@@ -388,7 +388,7 @@ function verHistorial() {
             if (!data.success) return;
             
             let historial = data.historial;
-            let contenedor = document.getElementById("historialPDF");
+            let contenedor = document.getElementById("listaHistorial");
             let spanTotalDia = document.getElementById("totalDia");
             
             if (!contenedor) return;
