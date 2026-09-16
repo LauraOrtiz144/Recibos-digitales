@@ -375,87 +375,96 @@ async function irAFacturacion() {
 /* ==========================================
    HISTORIAL DE VENTAS
    ================================---------- */
-async function verHistorial() {
-    mostrarVista("historialVista");
-    const lista = document.getElementById("listaHistorial");
-    const spanTotalDia = document.getElementById("totalDia");
-    if (!lista) return;
+function verHistorial() {
+    mostrarVista('historialVista');
+    
+    // Asegúrate de usar tu URL de despliegue de Apps Script o tu variable global de API
+    fetch(urlAPI + "?accion=obtenerHistorial")
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) return;
+            
+            let historial = data.historial;
+            let contenedor = document.getElementById("listaHistorial");
+            let spanTotalDia = document.getElementById("totalDia");
+            
+            // Agrupar los productos por número de remisión
+            let remisionesAgrupadas = {};
+            let totalGeneralDia = 0;
 
-    lista.innerHTML = "<p style='text-align:center;'>Cargando historial del mes...</p>";
-    const urlAPI = obtenerUrlAPI();
-    if (!urlAPI) return;
-
-    try {
-        const respuesta = await fetch(`${urlAPI}?accion=obtenerHistorial`, { redirect: 'follow' });
-        const resultado = await respuesta.json();
-
-        if (resultado.success) {
-            lista.innerHTML = "";
-            let sumaTotalMes = 0;
-            const rol = localStorage.getItem("rol") || "empleado";
-            const empleadoActual = localStorage.getItem("empleado") || "";
-
-            const fechaActual = new Date();
-            const mesActual = fechaActual.getMonth();
-            const anioActual = fechaActual.getFullYear();
-
-            let ventasMostrar = resultado.historial.filter(item => {
-                const fechaItem = new Date(item.fecha);
-                const coincideMes = fechaItem.getMonth() === mesActual && fechaItem.getFullYear() === anioActual;
-                 
-                if (!coincideMes) return false;
-
-                if (rol === "empleado") {
-                    return item.empleado.trim().toLowerCase() === empleadoActual.trim().toLowerCase();
+            historial.forEach(item => {
+                let key = item.numRemisionStr;
+                if (!remisionesAgrupadas[key]) {
+                    remisionesAgrupadas[key] = {
+                        numRemisionStr: item.numRemisionStr,
+                        fecha: item.fecha ? new Date(item.fecha).toLocaleString() : "Fecha no disponible",
+                        empleado: item.empleado,
+                        cliente: item.cliente,
+                        estadoPago: item.estadoPago,
+                        items: [],
+                        totalRemision: 0
+                    };
                 }
-                return true;
+                remisionesAgrupadas[key].items.push({
+                    producto: item.producto,
+                    cantidad: item.cantidad,
+                    subtotal: item.subtotal
+                });
+                remisionesAgrupadas[key].totalRemision += Number(item.subtotal) || 0;
             });
 
-            if (ventasMostrar.length === 0) {
-                lista.innerHTML = "<p style='text-align:center;'>No hay ventas registradas en este mes.</p>";
-                if (spanTotalDia) spanTotalDia.innerText = "0";
-                return;
-          }
+            let html = "";
+            for (let key in remisionesAgrupadas) {
+                let rem = remisionesAgrupadas[key];
+                totalGeneralDia += rem.totalRemision;
 
-            ventasMostrar.forEach(item => {
-                sumaTotalMes += Number(item.subtotal) || 0; 
-                const numRemisionStr = String(item.numRemision).padStart(4, '0');
-                const div = document.createElement("div");
-                div.className = "historial-item";
-                div.style.cssText = "background: white; margin-bottom: 12px; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid #2980b9;";
-                 
-                const esPendiente = item.estadoPago === "Pendiente";
-                const colorFondoEstado = esPendiente ? "#e74c3c" : "#27ae60";
-                const textoEstado = esPendiente ? "POR COBRAR" : "PAGADO";
+                // Color del badge según estado de pago
+                let badgeColor = rem.estadoPago === "Pagado" ? "#27ae60" : "#e67e22";
 
-                div.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <span style="font-size: 0.85rem; color: #2980b9; font-weight: bold;">Remisión #${numRemisionStr}</span>
-                        <span style="font-size: 0.85rem; color: #666;">${new Date(item.fecha).toLocaleString("es-CO")}</span>
-                    </div>
-                    <p style="margin: 0 0 5px 0; font-size: 0.9rem;"><b>Empleado:</b> ${item.empleado}</p>
-                    <p style="margin: 0 0 5px 0; font-size: 0.95rem; color: #2c3e50;"><b>Producto:</b> ${item.producto}</p>
-                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px;">
-                        <div>
-                            <span>Cant: <b>${item.cantidad}</b></span>
+                html += `
+                    <div style="background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
+                            <strong style="color: #2563eb; font-size: 16px;">Remisión #${rem.numRemisionStr}</strong>
+                            <span style="font-size: 12px; color: #666;">${rem.fecha}</span>
                         </div>
-                        <div>
-                            <span style="background: ${colorFondoEstado}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 8px;">${textoEstado}</span>
-                            <span style="color: #27ae60; font-weight: bold;">Subtotal: $${formatoMoneda(item.subtotal)}</span>
+                        <p style="margin: 4px 0; font-size: 14px;"><strong>Cliente:</strong> ${rem.cliente}</p>
+                        <p style="margin: 4px 0; font-size: 14px;"><strong>Empleado:</strong> ${rem.empleado}</p>
+                        
+                        <div style="margin: 10px 0; background: #f8fafc; padding: 8px; border-radius: 6px;">
+                            <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid #cbd5e1; text-align: left; color: #475569;">
+                                        <th style="padding-bottom: 4px;">Producto</th>
+                                        <th style="padding-bottom: 4px;">Cant</th>
+                                        <th style="padding-bottom: 4px; text-align: right;">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rem.items.map(i => `
+                                        <tr>
+                                            <td style="padding: 4px 0;">${i.producto}</td>
+                                            <td style="padding: 4px 0;">${i.cantidad}</td>
+                                            <td style="padding: 4px 0; text-align: right;">$${formatoMoneda(i.subtotal)}</td>
+                                        </tr>
+                                    `).join("")}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                            <span style="background: ${badgeColor}; color: white; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold;">${rem.estadoPago}</span>
+                            <strong style="font-size: 15px; color: #1e293b;">Total: $${formatoMoneda(rem.totalRemision)}</strong>
                         </div>
                     </div>
                 `;
-                lista.appendChild(div);
-          });
+            }
 
-            if (spanTotalDia) spanTotalDia.innerText = formatoMoneda(sumaTotalMes);
-      } else {
-            lista.innerHTML = "<p>No se pudo cargar el historial.</p>";
-      }
-    } catch (error) {
-        console.error(error);
-        lista.innerHTML = "<p>Error de conexión al obtener el historial.</p>";
-    }
+            contenedor.innerHTML = html;
+            if (spanTotalDia) {
+                spanTotalDia.innerText = formatoMoneda(totalGeneralDia);
+            }
+        })
+        .catch(err => console.error("Error al cargar el historial:", err));
 }
 
 /* ==========================================
@@ -833,4 +842,25 @@ function eliminarItemFactura(index) {
     factura.splice(index, 1);
     actualizarFactura();
 }
+
+function descargarHistorialPDF() {
+    const elemento = document.getElementById("historialPDF");
+    if (!elemento) return;
+
+    const opciones = {
+        margin:       10,
+        filename:     'Historial_Ventas_SOLMET.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Usa html2pdf (librería cargada en tu index) para empaquetar la vista en PDF y abrir diálogo de descarga/guardar
+    html2pdf().from(elemento).set(opciones).save().catch(err => {
+        console.error("Error al generar el PDF del historial:", err);
+        alert("No se pudo descargar el archivo PDF. Inténtalo de nuevo.");
+    });
+}
+
+
 
