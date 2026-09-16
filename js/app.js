@@ -396,12 +396,12 @@ function verHistorial() {
             let totalGeneralDia = 0;
 
             historial.forEach(item => {
-                let numRem = item.numRemisionStr || item.numRemision;
+                let numRem = item.numRemision || item.numRemision;
                 let key = (numRem !== undefined && numRem !== null && String(numRem).trim() !== "") ? String(numRem) : "S/N";
                 
                 if (!remisionesAgrupadas[key]) {
                     remisionesAgrupadas[key] = {
-                        numRemisionStr: key,
+                        numRemision: key,
                         fecha: item.fecha ? new Date(item.fecha).toLocaleString() : "Fecha no disponible",
                         empleado: item.empleado || "Desconocido",
                         cliente: item.cliente || "Mostrador / Genérico",
@@ -440,7 +440,7 @@ function verHistorial() {
                 html += `
                     <div style="background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;">
                         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
-                            <strong style="color: #2563eb; font-size: 16px;">Remisión #${rem.numRemisionStr}</strong>
+                            <strong style="color: #2563eb; font-size: 16px;">Remisión #${rem.numRemision}</strong>
                             <span style="font-size: 12px; color: #666;">${rem.fecha}</span>
                         </div>
                         <p style="margin: 4px 0; font-size: 14px;"><strong>Cliente:</strong> ${rem.cliente}</p>
