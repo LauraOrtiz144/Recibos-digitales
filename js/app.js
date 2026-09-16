@@ -159,7 +159,6 @@ async function login() {
   const firmaGuardadaLocal = localStorage.getItem("firmaVendedorGuardada");
   let firmaBase64 = "";
 
-  // Validamos si el sistema requiere la firma (primera vez)
   const contenedorSeccionFirma = document.getElementById("seccionFirmaUnica");
   const esVisibleFirma = contenedorSeccionFirma && contenedorSeccionFirma.style.display !== "none";
 
@@ -237,16 +236,13 @@ function cerrarSesion() {
    GESTIÓN DE VISTAS
    ================================---------- */
 function mostrarVista(vistaId) {
-    // Ocultar todas las vistas
     document.querySelectorAll('.vista').forEach(el => el.style.display = 'none');
     
-    // Mostrar la vista seleccionada
     const vistaSeleccionada = document.getElementById(vistaId);
     if (vistaSeleccionada) {
         vistaSeleccionada.style.display = 'block';
     }
 
-    // SI ABREN EL HISTORIAL, CARGAR LOS DATOS AUTOMÁTICAMENTE
     if (vistaId === 'historialVista') {
         verHistorial();
     }
@@ -361,16 +357,15 @@ async function irAFacturacion() {
         
         if (firmaNube && firmaNube.length > 50) {
             imgEntrego.src = firmaNube;
-            imgEntrego.style.display = "block"; // Muestra la firma corporativa cargada desde J2
-            console.log("Firma corporativa aplicada correctamente en pantalla.");
+            imgEntrego.style.display = "block";
         } else {
-            console.warn("La firma de la nube llegó vacía o incompleta.");
             imgEntrego.style.display = "none"; 
         }
     }
 }
+
 /* ==========================================
-   HISTORIAL DE VENTAS (CORREGIDO Y LIMPIO)
+   HISTORIAL DE VENTAS (ACTUALIZADO CON FILTRO JEFE/EMPLEADO)
    ================================---------- */
 function verHistorial() {
     mostrarVista('historialVista');
@@ -380,8 +375,16 @@ function verHistorial() {
         alert("No se encontró la URL de la API.");
         return;
     }
+
+    // Obtenemos el empleado y rol actuales desde localStorage para enviarlos al backend
+    const empleadoActual = localStorage.getItem("empleado") || "";
+    const rolActual = localStorage.getItem("rol") || "";
+    const esJefe = (rolActual === "jefe" || empleadoActual.toLowerCase() === "administrador");
     
-    fetch(urlAPI + "?accion=obtenerHistorial")
+    // Construimos la URL enviando los parámetros necesarios para que el backend filtre si es empleado
+    const urlConsulta = `${urlAPI}?accion=obtenerHistorial&empleado=${encodeURIComponent(empleadoActual)}&esJefe=${esJefe}`;
+
+    fetch(urlConsulta)
         .then(res => res.json())
         .then(data => {
             if (!data.success || !data.historial) return;
@@ -396,7 +399,7 @@ function verHistorial() {
             let totalGeneralDia = 0;
 
             historial.forEach(item => {
-                let numRem = item.numRemision || item.numRemision;
+                let numRem = item.numRemision;
                 let key = (numRem !== undefined && numRem !== null && String(numRem).trim() !== "") ? String(numRem) : "S/N";
                 
                 if (!remisionesAgrupadas[key]) {
@@ -476,6 +479,7 @@ function verHistorial() {
         })
         .catch(err => console.error("Error al cargar el historial:", err));
 }
+
 /* ==========================================
    GENERADOR PDF Y COMPARTIR
    ================================---------- */
@@ -553,13 +557,11 @@ function prepararDocumentoPDF() {
     doc.text("Entregó", 14, startY + 4);
     doc.text("Recibió", 114, startY + 4);
 
-    // 1. Colocar automáticamente la firma del vendedor/propietario (Login) en "Entregó"
     const firmaVendedorBase64 = localStorage.getItem("firmaVendedorBase64"); 
     if (firmaVendedorBase64) {
         doc.addImage(firmaVendedorBase64, 'PNG', 18, startY - 22, 50, 20);
     }
 
-    // 2. Colocar la firma del cliente en "Recibió" (si se desea)
     const canvasFirma = document.getElementById("firmaCanvas");
     if (canvasFirma) {
         const firmaClienteData = canvasFirma.toDataURL("image/png");
@@ -785,25 +787,19 @@ async function obtenerFirmaDesdeNube() {
   }
   
   try {
-    // Añadimos un parámetro de tiempo para evitar que el navegador guarde en caché un resultado viejo
     const respuesta = await fetch(`${urlAPI}?accion=obtenerFirmaCorporativa&t=${Date.now()}`, { 
       method: 'GET',
       redirect: 'follow' 
     });
     
     const resultado = await respuesta.json();
-    console.log("Datos recibidos de Apps Script:", resultado); // MIRA ESTO EN LA CONSOLA SI PUEDES
-
-    // Verificamos si vino en 'urlFirma' o directamente en alguna otra propiedad
     let base64Firma = resultado.urlFirma || resultado.firma || "";
 
     if (base64Firma) {
       base64Firma = base64Firma.trim();
-      // Si la celda ya tiene el formato data:image, lo retornamos directo
       if (base64Firma.startsWith("data:image")) {
         return base64Firma;
       } else {
-        // Si por alguna razón solo se guardó el código plano sin el prefijo, se lo agregamos
         return "data:image/png;base64," + base64Firma;
       }
     }
@@ -840,7 +836,6 @@ function actualizarFactura() {
 
     cuerpoTabla.innerHTML = htmlTabla;
 
-    // Actualizar el total con el ID correcto de tu HTML (<span id="total">)
     const totalEl = document.getElementById("total");
     if (totalEl) {
         totalEl.innerText = formatoMoneda(total);
@@ -867,11 +862,9 @@ function descargarHistorialPDF() {
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    // Generar el PDF y manejarlo para móviles o escritorio
     html2pdf().from(elemento).set(opciones).outputPdf('blob').then(async (pdfBlob) => {
         const file = new File([pdfBlob], "Historial_Ventas.pdf", { type: "application/pdf" });
 
-        // Si estamos en un celular compatible con compartir archivos, usamos el menú nativo
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
                 await navigator.share({
@@ -882,15 +875,12 @@ function descargarHistorialPDF() {
                 return;
             } catch (e) {
                 console.log("Compartir cancelado o no disponible, intentando descarga directa.");
-            }
+          }
         }
 
-        // Si es PC o no abrió el menú de compartir, disparamos la descarga tradicional
         html2pdf().from(elemento).set(opciones).save();
     }).catch(err => {
-        console.error("Error al generar el PDF del historial:", err);
-        alert("No se pudo generar el archivo PDF. Inténtalo de nuevo.");
+        console.error("Error al generar PDF del historial:", err);
     });
 }
-
 
