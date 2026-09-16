@@ -5,6 +5,7 @@ let productos = [];
 let factura = [];
 let total = 0;
 let numeroRemision = 1; 
+let remisionesGlobalesData = {};
 
 const urlMaster = "https://script.google.com/macros/s/AKfycby9sTsRxIVXscPY-fOs4ynBNXGyLDis0pbFAZE3r9doFrjqeefTnEVvew5jzIvf-02t/exec";
 
@@ -369,7 +370,6 @@ async function irAFacturacion() {
         }
     }
 }
-let remisionesGlobalesData = {};
 
 /* ==========================================
    HISTORIAL DE VENTAS (CORREGIDO Y UNIFICADO)
@@ -394,7 +394,7 @@ function verHistorial() {
             
             if (!contenedor) return;
 
-            remisionesGlobalesData = {}; // Reiniciar
+            remisionesGlobalesData = {}; // Reiniciar con la variable global segura
             let totalGeneralDia = 0;
 
             historial.forEach(item => {
@@ -448,7 +448,7 @@ function verHistorial() {
                                         <tr>
                                             <td style="padding: 4px 0;">${i.producto}</td>
                                             <td style="padding: 4px 0;">${i.cantidad}</td>
-                                            <td style="padding: 4px 0; text-align: right;">$${formatoMoneda(i.subtotal)}</td>
+                                            <td style="padding: 4px 0; text-align: right;">$${typeof formatoMoneda === 'function' ? formatoMoneda(i.subtotal) : i.subtotal}</td>
                                         </tr>
                                     `).join("")}
                                 </tbody>
@@ -457,7 +457,7 @@ function verHistorial() {
 
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
                             <span style="background: ${badgeColor}; color: white; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold;">${rem.estadoPago}</span>
-                            <strong style="font-size: 15px; color: #1e293b;">Total: $${formatoMoneda(rem.totalRemision)}</strong>
+                            <strong style="font-size: 15px; color: #1e293b;">Total: $${typeof formatoMoneda === 'function' ? formatoMoneda(rem.totalRemision) : rem.totalRemision}</strong>
                         </div>
                     </div>
                 `;
@@ -465,7 +465,7 @@ function verHistorial() {
 
             contenedor.innerHTML = html;
             if (spanTotalDia) {
-                spanTotalDia.innerText = formatoMoneda(totalGeneralDia);
+                spanTotalDia.innerText = typeof formatoMoneda === 'function' ? formatoMoneda(totalGeneralDia) : totalGeneralDia;
             }
         })
         .catch(err => console.error("Error al cargar el historial:", err));
@@ -847,26 +847,32 @@ function eliminarItemFactura(index) {
     actualizarFactura();
 }
 /* ==========================================
-   DESCARGAR HISTORIAL EN PDF (OPTIMIZADO)
+   DESCARGAR PDF PERFECTO CON JSPDF NATIVO
    ================================---------- */
 function descargarHistorialPDF() {
     const { jsPDF } = window.jspdf;
     if (!jsPDF) {
-        alert("La librería jsPDF no está cargada correctamente.");
+        alert("La librería jsPDF no está cargada.");
+        return;
+    }
+
+    // Usamos remisionesGlobalesData (los datos que ya cargó tu historial)
+    if (!remisionesGlobalesData || Object.keys(remisionesGlobalesData).length === 0) {
+        alert("No hay datos en el historial para exportar.");
         return;
     }
 
     const doc = new jsPDF();
     let y = 15;
 
-    // Título del documento
+    // Encabezado del PDF
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(30, 41, 59);
     doc.text("Historial de Ventas", 14, y);
     y += 8;
 
-    // Calcular total general del día
+    // Calcular total general
     let totalGeneral = 0;
     for (let k in remisionesGlobalesData) {
         totalGeneral += remisionesGlobalesData[k].totalRemision;
@@ -878,36 +884,35 @@ function descargarHistorialPDF() {
     doc.text(`Total del día: $${formatoMoneda(totalGeneral)}`, 14, y);
     y += 10;
 
-    // Recorrer cada remisión guardada
+    // Recorrer cada remisión y dibujarla ordenadamente línea por línea
     for (let key in remisionesGlobalesData) {
         let rem = remisionesGlobalesData[key];
 
-        // Salto de página automático si se acaba el espacio
-        if (y > 260) {
+        // Salto de página automático si se acaba la hoja
+        if (y > 250) {
             doc.addPage();
             y = 15;
         }
 
-        // Fondo gris para la cabecera de la remisión
+        // Caja de fondo para la remisión
         doc.setFillColor(248, 250, 252);
-        doc.rect(14, y, 182, 18, "F");
+        doc.rect(14, y, 182, 16, "F");
 
-        // Datos principales de la remisión
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
+        doc.setFontSize(10);
         doc.setTextColor(37, 99, 235);
         doc.text(`Remisión #${rem.numRemisionStr}`, 18, y + 6);
 
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
+        doc.setFontSize(8);
         doc.setTextColor(100, 100, 100);
-        doc.text(rem.fecha, 135, y + 6);
+        doc.text(rem.fecha, 130, y + 6);
 
         doc.setTextColor(50, 50, 50);
-        doc.text(`Cliente: ${rem.cliente}   |   Empleado: ${rem.empleado}`, 18, y + 13);
-        y += 22;
+        doc.text(`Cliente: ${rem.cliente}   |   Empleado: ${rem.empleado}`, 18, y + 12);
+        y += 20;
 
-        // Columnas de la tabla de productos
+        // Cabecera de la tablita de productos
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
         doc.setTextColor(100, 116, 139);
@@ -920,13 +925,13 @@ function descargarHistorialPDF() {
         doc.line(14, y, 196, y);
         y += 5;
 
-        // Listar productos de la remisión
+        // Productos de la remisión
         doc.setFont("helvetica", "normal");
         doc.setTextColor(30, 41, 59);
         rem.items.forEach(i => {
-            if (y > 280) { 
-                doc.addPage(); 
-                y = 15; 
+            if (y > 280) {
+                doc.addPage();
+                y = 15;
             }
             doc.text(String(i.producto), 18, y);
             doc.text(String(i.cantidad), 120, y);
@@ -934,19 +939,19 @@ function descargarHistorialPDF() {
             y += 6;
         });
 
-        // Totales y estado al pie de la remisión
+        // Totales y estado
         y += 2;
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
-        doc.setTextColor(39, 174, 96); // Verde para el estado/total
+        doc.setTextColor(39, 174, 96);
         doc.text(`Estado: ${rem.estadoPago}`, 18, y);
         doc.setTextColor(30, 41, 59);
         doc.text(`Total Remisión: $${formatoMoneda(rem.totalRemision)}`, 140, y);
         
-        y += 12; // Espacio entre remisiones
+        y += 10; // Espacio libre antes de la siguiente remisión
     }
 
-    // Descargar el PDF generado limpiamente
-    doc.save("Historial_Ventas_" + new Date().toISOString().slice(0, 10) + ".pdf");
+    // Descargar el archivo PDF limpio
+    doc.save("Historial_Ventas.pdf");
 }
 
