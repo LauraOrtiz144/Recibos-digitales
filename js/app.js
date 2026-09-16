@@ -385,7 +385,7 @@ function verHistorial() {
     fetch(urlAPI + "?accion=obtenerHistorial")
         .then(res => res.json())
         .then(data => {
-            if (!data.success) return;
+            if (!data.success || !data.historial) return;
             
             let historial = data.historial;
             let contenedor = document.getElementById("listaHistorial");
@@ -393,27 +393,30 @@ function verHistorial() {
             
             if (!contenedor) return;
 
-            // Agrupar los productos por número de remisión
             let remisionesAgrupadas = {};
             let totalGeneralDia = 0;
 
             historial.forEach(item => {
-                let key = item.numRemisionStr;
+                // Validación para evitar que filas sin número rompan el historial
+                let numRem = item.numRemisionStr || item.numRemision;
+                let key = (numRem !== undefined && numRem !== null && String(numRem).trim() !== "") ? String(numRem) : "S/N";
+                
                 if (!remisionesAgrupadas[key]) {
                     remisionesAgrupadas[key] = {
-                        numRemisionStr: item.numRemisionStr,
+                        numRemisionStr: key,
                         fecha: item.fecha ? new Date(item.fecha).toLocaleString() : "Fecha no disponible",
-                        empleado: item.empleado,
-                        cliente: item.cliente,
-                        estadoPago: item.estadoPago,
+                        empleado: item.empleado || "Desconocido",
+                        cliente: item.cliente || "Mostrador / Genérico",
+                        estadoPago: item.estadoPago || "Pendiente",
                         items: [],
                         totalRemision: 0
                     };
                 }
+                
                 remisionesAgrupadas[key].items.push({
-                    producto: item.producto,
-                    cantidad: item.cantidad,
-                    subtotal: item.subtotal
+                    producto: item.producto || "Producto",
+                    cantidad: Number(item.cantidad) || 0,
+                    subtotal: Number(item.subtotal) || 0
                 });
                 remisionesAgrupadas[key].totalRemision += Number(item.subtotal) || 0;
             });
@@ -423,7 +426,6 @@ function verHistorial() {
                 let rem = remisionesAgrupadas[key];
                 totalGeneralDia += rem.totalRemision;
 
-                // Color del badge según estado de pago
                 let badgeColor = rem.estadoPago === "Pagado" ? "#27ae60" : "#e67e22";
 
                 html += `
