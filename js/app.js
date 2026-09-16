@@ -236,21 +236,19 @@ function cerrarSesion() {
 /* ==========================================
    GESTIÓN DE VISTAS
    ================================---------- */
-function mostrarVista(vista) {
-    document.querySelectorAll(".vista").forEach(v => {
-        v.style.display = "none";
-    });
-
-    const elVista = document.getElementById(vista);
-    if (elVista) elVista.style.display = "block";
-
-    const botones = document.getElementById("botonesAccion");
-    if (botones) {
-        botones.style.display = (vista === "facturacionVista") ? "block" : "none";
+function mostrarVista(vistaId) {
+    // Ocultar todas las vistas
+    document.querySelectorAll('.vista').forEach(el => el.style.display = 'none');
+    
+    // Mostrar la vista seleccionada
+    const vistaSeleccionada = document.getElementById(vistaId);
+    if (vistaSeleccionada) {
+        vistaSeleccionada.style.display = 'block';
     }
 
-    if (vista === "loginVista") {
-      verificarSiRequiereFirmaLogin();
+    // SI ABREN EL HISTORIAL, CARGAR LOS DATOS AUTOMÁTICAMENTE
+    if (vistaId === 'historialVista') {
+        verHistorial();
     }
 }
 
