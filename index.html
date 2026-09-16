@@ -189,25 +189,27 @@
 
   </div>
 
-  <!-- HISTORIAL -->
-  <div id="historialVista" class="vista" style="display:none;">
+<!-- HISTORIAL -->
+<div id="historialVista" class="vista" style="display:none;">
     
     <!-- Contenedor que capturará el PDF del historial -->
-    <div id="historialPDF">
-      <h2>Historial de ventas</h2>
-      <p style="margin-bottom: 15px;">Total del día: $<span id="totalDia">0</span></p>
-      
-      <!-- Aquí se cargan dinámicamente las remisiones agrupadas -->
-      <div id="listaHistorial"></div>
+    <div id="historialPDF" style="background: white; padding: 10px; border-radius: 8px;">
+        <h2>Historial de ventas</h2>
+        <p style="margin-bottom: 15px; font-weight: bold; color: #333;">Total del día: $<span id="totalDia">0</span></p>
+        
+        <!-- Aquí se cargan dinámicamente las remisiones agrupadas -->
+        <div id="listaHistorial"></div>
     </div>
 
     <!-- Botones de acción fuera del PDF -->
     <div class="historial-acciones" style="margin-top: 20px;">
-      <button onclick="descargarHistorialPDF()" class="btn-verde" style="width: 100%; margin-bottom: 10px; padding: 10px;">Descargar PDF de todas las ventas</button>
-      <button class="btn-secundario" onclick="mostrarVista('catalogoVista')" style="width: 100%; padding: 10px;">Volver</button>
+        <button onclick="descargarHistorialPDF()" style="background: #27ae60; color: white; width: 100%; margin-bottom: 10px; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+            Descargar PDF de todas las ventas
+        </button>
+        <button onclick="mostrarVista('catalogoVista')" style="background: #64748b; color: white; width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+            Volver
+        </button>
     </div>
-
-  </div>
 
 </div>
 
