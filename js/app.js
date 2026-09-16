@@ -369,9 +369,8 @@ async function irAFacturacion() {
         }
     }
 }
-
 /* ==========================================
-   HISTORIAL DE VENTAS (CORREGIDO Y UNIFICADO)
+   HISTORIAL DE VENTAS (CORREGIDO Y LIMPIO)
    ================================---------- */
 function verHistorial() {
     mostrarVista('historialVista');
@@ -397,7 +396,6 @@ function verHistorial() {
             let totalGeneralDia = 0;
 
             historial.forEach(item => {
-                // Validación para evitar que filas sin número rompan el historial
                 let numRem = item.numRemisionStr || item.numRemision;
                 let key = (numRem !== undefined && numRem !== null && String(numRem).trim() !== "") ? String(numRem) : "S/N";
                 
@@ -428,6 +426,17 @@ function verHistorial() {
 
                 let badgeColor = rem.estadoPago === "Pagado" ? "#27ae60" : "#e67e22";
 
+                let filasItems = "";
+                rem.items.forEach(i => {
+                    filasItems += `
+                        <tr>
+                            <td style="padding: 4px 0;">${i.producto}</td>
+                            <td style="padding: 4px 0;">${i.cantidad}</td>
+                            <td style="padding: 4px 0; text-align: right;">$${formatoMoneda(i.subtotal)}</td>
+                        </tr>
+                    `;
+                });
+
                 html += `
                     <div style="background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;">
                         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
@@ -447,13 +456,7 @@ function verHistorial() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${rem.items.map(i => `
-                                        <tr>
-                                            <td style="padding: 4px 0;">${i.producto}</td>
-                                            <td style="padding: 4px 0;">${i.cantidad}</td>
-                                            <td style="padding: 4px 0; text-align: right;">$${formatoMoneda(i.subtotal)}</td>
-                                        </tr>
-                                    `).join("")}
+                                    ${filasItems}
                                 </tbody>
                             </table>
                         </div>
