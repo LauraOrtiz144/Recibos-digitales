@@ -197,7 +197,7 @@ async function login() {
         }
     } catch (error) {
         console.error("Error al conectar con la base de datos de accesos:", error);
-        alert("Hubo un error al verificar el PIN con la base de datos.");
+        alert("Error técnico: " + error.toString());
     }
 }
 /* ==========================================
