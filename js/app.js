@@ -304,15 +304,58 @@ function mostrarCatalogo() {
   contenedor.innerHTML = "";
 
   productos.forEach(p => {
-    const div = document.createElement("div");
-    div.className = "producto-card";
+    const card = document.createElement("div");
+    card.className = "producto-card"; // Usa directamente tu clase del CSS
 
-    div.innerHTML = `
-      <h3>${p.nombre}</h3>
-      <p>Stock: ${p.cantidad_actual}</p>
-      <p class="precio">$${formatoMoneda(p.precio)}</p>
+    // Variables de control de stock
+    const stock = Number(p.cantidad_actual) || 0;
+    const limite = Number(p.limite_alerta) || 0;
+    
+    let estadoStockHTML = "";
+    let bordeEstado = "";
+
+    // Lógica de colores, alertas de stock bajo y bloqueo por agotado
+    if (stock <= 0) {
+      bordeEstado = "border-left: 5px solid #dc2626; opacity: 0.6;"; // Rojo (Agotado)
+      estadoStockHTML = "<span style='color: #dc2626; font-weight: bold; font-size: 12px;'>⚠️ ¡Agotado!</span>";
+    } else if (stock <= limite) {
+      bordeEstado = "border-left: 5px solid #ca8a04;"; // Amarillo/Dorado (Stock bajo)
+      estadoStockHTML = "<span style='color: #ca8a04; font-weight: bold; font-size: 12px;'>⚠️ Stock bajo: " + stock + "</span>";
+    } else {
+      bordeEstado = "border-left: 5px solid #16a34a;"; // Verde (Disponible)
+      estadoStockHTML = "<span style='color: #16a34a; font-size: 12px;'>Disponible: " + stock + "</span>";
+    }
+
+    // Aplicar el borde lateral indicador de stock manteniendo tu diseño base
+    card.style.cssText = `text-align: left; position: relative; ${bordeEstado} display: flex; flex-direction: column; justify-content: space-between;`;
+
+    card.innerHTML = `
+      <div>
+        <h3>${p.nombre}</h3>
+        <p style="font-size: 12px; color: #64748b; margin: 2px 0 6px 0;">Cód: ${p.codigo_interno}</p>
+      </div>
+      <div>
+        <div class="precio">$${formatoMoneda(p.precio)}</div>
+        <div style="margin-top: 4px;">${estadoStockHTML}</div>
+      </div>
     `;
-    contenedor.appendChild(div);
+
+    // Comportamiento al hacer clic según el stock
+    if (stock <= 0) {
+      card.onclick = function() {
+        alert(`El producto "${p.nombre}" está agotado y no se puede agregar a la remisión.`);
+      };
+      card.style.cursor = "not-allowed";
+    } else {
+      card.style.cursor = "pointer";
+      card.title = "Haz clic para agregar a la remisión";
+      card.onclick = function() {
+        agregarProductoFactura(p, 1);
+        alert(`¡${p.nombre} agregado a la remisión!`);
+      };
+    }
+
+    contenedor.appendChild(card);
   });
 }
 
