@@ -136,6 +136,7 @@ async function activar() {
       localStorage.setItem("pinEmpleado", respuesta.pinEmpleado);
       localStorage.setItem("clienteEmpresa", respuesta.clienteEmpresa); // Ej: Jairo, Juan o Deisy
       localStorage.setItem("urlAPI", respuesta.urlCliente);
+      localStorage.setItem("sistemaActivado", "true");
       
       alert("¡Activado correctamente!");
       mostrarVista("loginVista");
@@ -150,109 +151,55 @@ async function activar() {
 }
 
 async function login() {
-    const pinIngresado = document.getElementById("pin").value.trim();
+    const pinIngresado = document.getElementById("pin")?.value.trim() || "";
     const nombreInput = document.getElementById("nombreLogin")?.value.trim() || "";
-
-    // Recuperamos los PINs y el nombre de la empresa guardados previamente durante la activación
-    const pinJefe = localStorage.getItem("pinJefe") || "";
-    const pinEmpleado = localStorage.getItem("pinEmpleado") || "";
-    const clienteEmpresa = localStorage.getItem("clienteEmpresa") || "Administrador";
-  
-    const firmaGuardadaLocal = localStorage.getItem("firmaVendedorGuardada");
-    let firmaBase64 = "";
-
-    const contenedorSeccionFirma = document.getElementById("seccionFirmaUnica");
-    const esVisibleFirma = contenedorSeccionFirma && contenedorSeccionFirma.style.display !== "none";
-
-    if (esVisibleFirma && !firmaGuardadaLocal) {
-        const canvasLoginElem = document.getElementById("canvasFirmaLogin");
-        if (!canvasLoginElem) {
-            alert("Error: No se encontró el cuadro de firma.");
-            return;
-        }
-        
-        firmaBase64 = canvasLoginElem.toDataURL("image/png");
-        
-        if (firmaBase64.length < 1500) {
-            alert("Debes dibujar la firma del administrador/vendedor para continuar.");
-            return;
-        }
-        
-        procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal);
-    } else {
-        firmaBase64 = localStorage.getItem("firmaVendedorBase64") || "";
-    }
 
     if (!pinIngresado) {
         alert("Por favor ingresa tu PIN de acceso.");
         return;
     }
 
-    // Validación como JEFE
-    if (pinJefe && pinIngresado === pinJefe) {
-        localStorage.setItem("sesionActiva", "true");
-        localStorage.setItem("rol", "jefe");
-        // El jefe guarda su nombre corporativo/empresa para ver todo lo de sus empleados
-        localStorage.setItem("empleado", clienteEmpresa); 
-
-        // Variables globales de respaldo para el historial
-        window.usuarioLogueado = clienteEmpresa;
-        window.rolLogueado = "jefe";
-
-        iniciarEntornoTrabajo();
-    } 
-    // Validación como EMPLEADO
-    else if (pinEmpleado && pinIngresado === pinEmpleado) {
-        if (!nombreInput) {
-            alert("Por favor ingresa tu nombre de empleado para continuar.");
-            return;
-        }
-        localStorage.setItem("sesionActiva", "true");
-        localStorage.setItem("rol", "empleado");
-        localStorage.setItem("empleado", nombreInput);
-
-        // Variables globales de respaldo para el historial
-        window.usuarioLogueado = nombreInput;
-        window.rolLogueado = "empleado";
-
-        iniciarEntornoTrabajo();
-    } 
-    else {
-        alert("PIN incorrecto. Por favor verifícalo.");
+    // Obtenemos la URL de la API principal donde están las licencias
+    const urlAPI = obtenerUrlAPI(); 
+    if (!urlAPI) {
+        alert("No se encontró la URL de la API.");
+        return;
     }
-}
 
-function procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal) {
-  if (!firmaGuardadaLocal && firmaBase64) {
-    localStorage.setItem("firmaVendedorGuardada", "true");
-    localStorage.setItem("firmaVendedorBase64", firmaBase64); 
-    
-    const urlAPI = obtenerUrlAPI();
-    const payload = {
-      accion: "guardarFirmaCorporativa",
-      firmaCorporativa: firmaBase64
+    // Preparamos los datos para consultar directamente la base de datos
+    const datosEnvio = {
+        accion: "login",
+        pin: pinIngresado,
+        empleado: nombreInput
     };
 
-    fetch(urlAPI, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    }).catch(err => console.log("Sincronización de firma en segundo plano", err));
-  }
-}
+    try {
+        const response = await fetch(urlAPI, {
+            method: "POST",
+            body: JSON.stringify(datosEnvio)
+        });
+        
+        const resultado = await response.json();
 
-function iniciarEntornoTrabajo() {
-  mostrarVista("catalogoVista");
-  cargarInventarioDesdeNube();
-}
+        if (resultado.success) {
+            // Guardamos únicamente el estado de sesión activa y los datos devueltos por la BD
+            localStorage.setItem("sesionActiva", "true");
+            localStorage.setItem("rol", resultado.rol);
+            localStorage.setItem("empleado", resultado.empleado);
 
-function cerrarSesion() {
-  localStorage.removeItem("sesionActiva");
-  mostrarVista("loginVista");
-  verificarSiRequiereFirmaLogin(); 
-}
+            // Variables globales para el funcionamiento interno de las vistas
+            window.usuarioLogueado = resultado.empleado;
+            window.rolLogueado = resultado.rol;
 
+            iniciarEntornoTrabajo();
+        } else {
+            alert(resultado.message || "PIN incorrecto.");
+        }
+    } catch (error) {
+        console.error("Error al conectar con la base de datos de accesos:", error);
+        alert("Hubo un error al verificar el PIN con la base de datos.");
+    }
+}
 /* ==========================================
    GESTIÓN DE VISTAS
    ================================---------- */
@@ -385,9 +332,7 @@ async function irAFacturacion() {
     }
 }
 
-/* ==========================================
-   HISTORIAL DE VENTAS (ACTUALIZADO CON FILTRO JEFE/EMPLEADO)
-   ================================---------- */
+
 /* ==========================================
    HISTORIAL DE VENTAS (ACTUALIZADO)
    ========================================== */
@@ -400,12 +345,13 @@ function verHistorial() {
         return;
     }
 
-    // Obtenemos los datos correctos que guardó el login() en localStorage
-    const empleadoActual = localStorage.getItem("empleado") || "";
-    const rolActual = localStorage.getItem("rol") || "";
+    // Obtenemos los datos directamente de las variables globales en memoria de la sesión actual
+    // (Asegúrate de que window.usuarioLogueado y window.rolLogueado se asignen al hacer el login exitoso)
+    const empleadoActual = window.usuarioLogueado || "";
+    const rolActual = window.rolLogueado || "";
     const esJefe = (rolActual.toLowerCase() === "jefe" || empleadoActual.toLowerCase() === "administrador");
     
-    // Construimos la URL enviando los parámetros GET al Apps Script
+    // Construimos la URL enviando los parámetros GET al Apps Script para que filtre en la base de datos
     const urlConsulta = `${urlAPI}?accion=obtenerHistorial&empleado=${encodeURIComponent(empleadoActual)}&esJefe=${esJefe}`;
 
     fetch(urlConsulta)
@@ -413,6 +359,8 @@ function verHistorial() {
         .then(data => {
             if (!data.success || !data.historial) {
                 console.warn("No se encontró historial o la respuesta no fue exitosa.");
+                let contenedor = document.getElementById("listaHistorial");
+                if (contenedor) contenedor.innerHTML = "<p style='text-align: center; color: #666;'>No hay registros en el historial.</p>";
                 return;
             }
             
@@ -506,7 +454,6 @@ function verHistorial() {
         })
         .catch(err => console.error("Error al cargar el historial:", err));
 }
-
 /* ==========================================
    GENERADOR PDF Y COMPARTIR
    ================================---------- */
