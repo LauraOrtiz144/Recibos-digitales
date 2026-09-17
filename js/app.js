@@ -170,9 +170,11 @@ async function login() {
     let firmaBase64 = "";
     const contenedorSeccionFirma = document.getElementById("seccionFirmaUnica");
     if (contenedorSeccionFirma && contenedorSeccionFirma.style.display !== "none") {
-        if (canvasLogin) {
-            firmaBase64 = canvasLogin.toDataURL("image/png");
-            // Validamos que realmente hayan dibujado algo (si está muy vacía la imagen, medimos su longitud o validamos)
+        // CORRECCIÓN: Buscamos el elemento real usando su ID del HTML
+        const canvasLoginEl = document.getElementById("canvasFirmaLogin");
+        if (canvasLoginEl) {
+            firmaBase64 = canvasLoginEl.toDataURL("image/png");
+            // Validamos que realmente hayan dibujado algo
             if (firmaBase64.length < 1500) {
                 alert("Por favor dibuja tu firma corporativa para continuar.");
                 return;
@@ -200,6 +202,9 @@ async function login() {
                 try {
                     await fetch(urlAPI, {
                         method: "POST",
+                        headers: {
+                            "Content-Type": "application/json" // <-- Importante para que el Apps Script lea el JSON
+                        },
                         body: JSON.stringify({
                             accion: "guardarfirmacorporativa",
                             firmaCorporativa: firmaBase64
@@ -210,6 +215,8 @@ async function login() {
                     console.warn("No se pudo guardar la firma automáticamente en el servidor", errFirma);
                 }
             }
+            
+            // ... resto de tu código de éxito ...
             // Guardamos únicamente el estado de sesión activa y los datos devueltos por la BD
             localStorage.setItem("sesionActiva", "true");
             localStorage.setItem("rol", resultado.rol);
