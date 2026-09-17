@@ -166,6 +166,20 @@ async function login() {
         return;
     }
 
+   // 1. Verificamos si el canvas de firma está visible (primer inicio de sesión)
+    let firmaBase64 = "";
+    const contenedorSeccionFirma = document.getElementById("seccionFirmaUnica");
+    if (contenedorSeccionFirma && contenedorSeccionFirma.style.display !== "none") {
+        if (canvasLogin) {
+            firmaBase64 = canvasLogin.toDataURL("image/png");
+            // Validamos que realmente hayan dibujado algo (si está muy vacía la imagen, medimos su longitud o validamos)
+            if (firmaBase64.length < 1500) {
+                alert("Por favor dibuja tu firma corporativa para continuar.");
+                return;
+            }
+        }
+    }
+
     // Preparamos los datos para consultar directamente la base de datos
     const datosEnvio = {
         accion: "login",
@@ -182,6 +196,20 @@ async function login() {
         const resultado = await response.json();
 
         if (resultado.success) {
+           if (firmaBase64) {
+                try {
+                    await fetch(urlAPI, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            accion: "guardarfirmacorporativa",
+                            firmaCorporativa: firmaBase64
+                        })
+                    });
+                    localStorage.setItem("firmaVendedorGuardada", "true");
+                } catch (errFirma) {
+                    console.warn("No se pudo guardar la firma automáticamente en el servidor", errFirma);
+                }
+            }
             // Guardamos únicamente el estado de sesión activa y los datos devueltos por la BD
             localStorage.setItem("sesionActiva", "true");
             localStorage.setItem("rol", resultado.rol);
@@ -199,6 +227,23 @@ async function login() {
         console.error("Error al conectar con la base de datos de accesos:", error);
         alert("Error técnico: " + error.toString());
     }
+}
+
+function iniciarEntornoTrabajo() {
+  mostrarVista("catalogoVista");
+  const nombreEmpleado = localStorage.getItem("empleado");
+  const elNombreEmpresa = document.getElementById("empresaNombre");
+  if (elNombreEmpresa) {
+    elNombreEmpresa.innerText = `Empresa de ${nombreEmpleado || "Trabajador"}`;
+  }
+  const productosCache = localStorage.getItem("cache_productos");
+  if (productosCache) {
+    try {
+      productos = JSON.parse(productosCache);
+      mostrarCatalogo();
+    } catch (e) { console.error(e); }
+  }
+  cargarInventarioDesdeNube();
 }
 /* ==========================================
    GESTIÓN DE VISTAS
