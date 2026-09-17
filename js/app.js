@@ -133,10 +133,12 @@ async function activar() {
     const resultado = await respuesta.json();
 
     if (resultado.success) {
-      localStorage.setItem("pinJefe", respuesta.pinJefe);
-      localStorage.setItem("pinEmpleado", respuesta.pinEmpleado);
-      localStorage.setItem("clienteEmpresa", respuesta.clienteEmpresa); // Ej: Jairo, Juan o Deisy
-      localStorage.setItem("urlAPI", respuesta.urlCliente);
+      // ✅ Corregido: Se lee de 'resultado' y se usa 'urlClienteAPI'
+      localStorage.setItem("pinJefe", resultado.pinJefe);
+      localStorage.setItem("pinEmpleado", resultado.pinEmpleado);
+      localStorage.setItem("clienteEmpresa", resultado.clienteEmpresa || ""); 
+      localStorage.setItem("urlClienteAPI", resultado.urlCliente); 
+      localStorage.setItem("empleado", nombreEmpleado);
       localStorage.setItem("sistemaActivado", "true");
       
       alert("¡Activado correctamente!");
@@ -150,7 +152,6 @@ async function activar() {
     alert("Error de conexión. Verifica tu internet o la URL Master.");
   }
 }
-
 async function login() {
     const pinIngresado = document.getElementById("pin")?.value.trim() || "";
     const nombreInput = document.getElementById("nombreLogin")?.value.trim() || "";
