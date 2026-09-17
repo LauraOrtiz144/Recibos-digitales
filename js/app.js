@@ -9,7 +9,7 @@ let numeroRemision = 1;
 const urlMaster = "https://script.google.com/macros/s/AKfycby9sTsRxIVXscPY-fOs4ynBNXGyLDis0pbFAZE3r9doFrjqeefTnEVvew5jzIvf-02t/exec";
 
 function obtenerUrlAPI() {
-    return localStorage.getItem("urlClienteAPI");
+    return "https://script.google.com/macros/s/AKfycby9sTsRxIVXscPY-fOs4ynBNXGyLDis0pbFAZE3r9doFrjqeefTnEVvew5jzIvf-02t/exec";
 }
 
 function formatoMoneda(valor) {
