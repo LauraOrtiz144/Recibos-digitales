@@ -5,6 +5,7 @@ let productos = [];
 let factura = [];
 let total = 0;
 let numeroRemision = 1; 
+let firmaVendedorGlobalEnMemoria = "";
 
 const urlMaster = "https://script.google.com/macros/s/AKfycby9sTsRxIVXscPY-fOs4ynBNXGyLDis0pbFAZE3r9doFrjqeefTnEVvew5jzIvf-02t/exec";
 
@@ -159,22 +160,20 @@ async function login() {
         return;
     }
 
-    // Obtenemos la URL de la API principal donde están las licencias
-    const urlAPI = obtenerUrlAPI(); 
+    const urlAPI = obtenerUrlAPI();  
     if (!urlAPI) {
         alert("No se encontró la URL de la API.");
         return;
     }
 
-   // 1. Verificamos si el canvas de firma está visible (primer inicio de sesión)
     let firmaBase64 = "";
     const contenedorSeccionFirma = document.getElementById("seccionFirmaUnica");
+    
+    // Validar si el canvas está activo (primera vez que pide la firma)
     if (contenedorSeccionFirma && contenedorSeccionFirma.style.display !== "none") {
-        // CORRECCIÓN: Buscamos el elemento real usando su ID del HTML
         const canvasLoginEl = document.getElementById("canvasFirmaLogin");
         if (canvasLoginEl) {
             firmaBase64 = canvasLoginEl.toDataURL("image/png");
-            // Validamos que realmente hayan dibujado algo
             if (firmaBase64.length < 1500) {
                 alert("Por favor dibuja tu firma corporativa para continuar.");
                 return;
@@ -182,47 +181,24 @@ async function login() {
         }
     }
 
-    // Preparamos los datos para consultar directamente la base de datos
     const datosEnvio = {
         accion: "login",
         pin: pinIngresado,
-        empleado: nombreInput
+        empleado: nombreInput,
+        firmaCorporativa: firmaBase64 // Se envía para que el Apps Script lo guarde en J2 si está vacío
     };
 
     try {
         const response = await fetch(urlAPI, {
             method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(datosEnvio)
         });
         
         const resultado = await response.json();
 
         if (resultado.success) {
-           if (firmaBase64) {
-                try {
-                    await fetch(urlAPI, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json" // <-- Importante para que el Apps Script lea el JSON
-                        },
-                        body: JSON.stringify({
-                            accion: "guardarfirmacorporativa",
-                            firmaCorporativa: firmaBase64
-                        })
-                    });
-                    localStorage.setItem("firmaVendedorGuardada", "true");
-                } catch (errFirma) {
-                    console.warn("No se pudo guardar la firma automáticamente en el servidor", errFirma);
-                }
-            }
-            
-            // ... resto de tu código de éxito ...
-            // Guardamos únicamente el estado de sesión activa y los datos devueltos por la BD
-            localStorage.setItem("sesionActiva", "true");
-            localStorage.setItem("rol", resultado.rol);
-            localStorage.setItem("empleado", resultado.empleado);
-
-            // Variables globales para el funcionamiento interno de las vistas
+            // Guardamos temporalmente en memoria de la sesión actual (variables globales)
             window.usuarioLogueado = resultado.empleado;
             window.rolLogueado = resultado.rol;
 
@@ -231,7 +207,7 @@ async function login() {
             alert(resultado.message || "PIN incorrecto.");
         }
     } catch (error) {
-        console.error("Error al conectar con la base de datos de accesos:", error);
+        console.error("Error al conectar con la base de datos:", error);
         alert("Error técnico: " + error.toString());
     }
 }
@@ -414,12 +390,13 @@ async function irAFacturacion() {
     const fechaEl = document.getElementById("fechaActual");
     if (fechaEl) fechaEl.innerText = new Date().toLocaleDateString("es-CO");
 
+    // Descargamos la firma de la celda J2 y la guardamos en memoria y en la imagen visual
+    firmaVendedorGlobalEnMemoria = await obtenerFirmaDesdeNube();
+    
     const imgEntrego = document.getElementById("imgFirmaVendedor");
     if (imgEntrego) {
-        const firmaNube = await obtenerFirmaDesdeNube(); 
-        
-        if (firmaNube && firmaNube.length > 50) {
-            imgEntrego.src = firmaNube;
+        if (firmaVendedorGlobalEnMemoria && firmaVendedorGlobalEnMemoria.length > 50) {
+            imgEntrego.src = firmaVendedorGlobalEnMemoria;
             imgEntrego.style.display = "block";
         } else {
             imgEntrego.style.display = "none"; 
@@ -626,7 +603,7 @@ function prepararDocumentoPDF() {
     doc.text("Entregó", 14, startY + 4);
     doc.text("Recibió", 114, startY + 4);
 
-    const firmaVendedorBase64 = localStorage.getItem("firmaVendedorBase64"); 
+    const firmaVendedorBase64 = firmaVendedorGlobalEnMemoria;
     if (firmaVendedorBase64) {
         doc.addImage(firmaVendedorBase64, 'PNG', 18, startY - 22, 50, 20);
     }
@@ -683,7 +660,7 @@ function guardarVentaEnNube() {
     return;
   }
 
-  const empleadoActual = localStorage.getItem("empleado") || "Empleado";
+  const empleadoActual = window.usuarioLogueado || "Empleado";
   const urlAPI = obtenerUrlAPI();
   if (!urlAPI) return;
 
@@ -712,7 +689,8 @@ function guardarVentaEnNube() {
     telefono: telCliente,
     direccion: dirCliente,
     estadoPago: estadoPagoSeleccionado,
-    firma: firmaBase64 
+    firma: firmaBase64,
+    firmaVendedor: firmaVendedorGlobalEnMemoria
   };
 
   factura = [];
@@ -796,15 +774,26 @@ let canvasLogin = null;
 let ctxLogin = null;
 let dibujandoLogin = false;
 
-function verificarSiRequiereFirmaLogin() {
-  const firmaGuardada = localStorage.getItem("firmaVendedorGuardada");
+async function verificarSiRequiereFirmaLogin() {
+  const urlAPI = obtenerUrlAPI();
   const contenedorSeccionFirma = document.getElementById("seccionFirmaUnica");
+  
+  if (!urlAPI) return;
 
-  if (!firmaGuardada) {
-    if (contenedorSeccionFirma) contenedorSeccionFirma.style.display = "block";
-    inicializarCanvasLogin();
-  } else {
-    if (contenedorSeccionFirma) contenedorSeccionFirma.style.display = "none";
+  try {
+    const respuesta = await fetch(`${urlAPI}?accion=obtenerfirmacorporativa`);
+    const resultado = await respuesta.json();
+
+    // Si ya existe la firma en la celda J2 del Sheets, ocultamos el campo para firmar
+    if (resultado.success && resultado.urlFirma && resultado.urlFirma.trim() !== "") {
+      if (contenedorSeccionFirma) contenedorSeccionFirma.style.display = "none";
+    } else {
+      // Si J2 está vacía, es la primera vez: mostramos el canvas obligatoriamente
+      if (contenedorSeccionFirma) contenedorSeccionFirma.style.display = "block";
+      inicializarCanvasLogin();
+    }
+  } catch (error) {
+    console.error("Error al comprobar la firma corporativa en la nube:", error);
   }
 }
 
@@ -951,5 +940,25 @@ function descargarHistorialPDF() {
     }).catch(err => {
         console.error("Error al generar PDF del historial:", err);
     });
+}
+
+let firmaVendedorGlobalEnMemoria = ""; // Aquí guardaremos la firma temporalmente mientras estás en la sesión
+
+// Función para ir a buscar la firma directo de la celda J2 del Google Sheets
+async function obtenerFirmaDesdeNube() {
+    const urlAPI = obtenerUrlAPI();
+    if (!urlAPI) return "";
+
+    try {
+        const respuesta = await fetch(`${urlAPI}?accion=obtenerfirmacorporativa`);
+        const resultado = await respuesta.json();
+        
+        if (resultado.success && resultado.urlFirma) {
+            return resultado.urlFirma; // Retorna el base64 de la celda J2
+        }
+    } catch (error) {
+        console.error("Error al obtener la firma corporativa:", error);
+    }
+    return "";
 }
 
