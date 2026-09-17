@@ -132,10 +132,10 @@ async function activar() {
     const resultado = await respuesta.json();
 
     if (resultado.success) {
-      localStorage.setItem("activado", "true");
-      localStorage.setItem("urlClienteAPI", resultado.urlCliente); 
-      localStorage.setItem("pinJefe", resultado.pinJefe);     
-      localStorage.setItem("pinEmpleado", resultado.pinEmpleado); 
+      localStorage.setItem("pinJefe", respuesta.pinJefe);
+      localStorage.setItem("pinEmpleado", respuesta.pinEmpleado);
+      localStorage.setItem("clienteEmpresa", respuesta.clienteEmpresa); // Ej: Jairo, Juan o Deisy
+      localStorage.setItem("urlAPI", respuesta.urlCliente);
       
       alert("¡Activado correctamente!");
       mostrarVista("loginVista");
@@ -150,55 +150,76 @@ async function activar() {
 }
 
 async function login() {
-  const pinIngresado = document.getElementById("pin").value.trim();
-  const nombreInput = document.getElementById("nombreLogin")?.value.trim();
+    const pinIngresado = document.getElementById("pin").value.trim();
+    const nombreInput = document.getElementById("nombreLogin")?.value.trim() || "";
 
-  const pinJefe = localStorage.getItem("pinJefe") || "9999";
-  const pinEmpleado = localStorage.getItem("pinEmpleado") || "1234";
+    // Recuperamos los PINs y el nombre de la empresa guardados previamente durante la activación
+    const pinJefe = localStorage.getItem("pinJefe") || "";
+    const pinEmpleado = localStorage.getItem("pinEmpleado") || "";
+    const clienteEmpresa = localStorage.getItem("clienteEmpresa") || "Administrador";
   
-  const firmaGuardadaLocal = localStorage.getItem("firmaVendedorGuardada");
-  let firmaBase64 = "";
+    const firmaGuardadaLocal = localStorage.getItem("firmaVendedorGuardada");
+    let firmaBase64 = "";
 
-  const contenedorSeccionFirma = document.getElementById("seccionFirmaUnica");
-  const esVisibleFirma = contenedorSeccionFirma && contenedorSeccionFirma.style.display !== "none";
+    const contenedorSeccionFirma = document.getElementById("seccionFirmaUnica");
+    const esVisibleFirma = contenedorSeccionFirma && contenedorSeccionFirma.style.display !== "none";
 
-  if (esVisibleFirma && !firmaGuardadaLocal) {
-    const canvasLoginElem = document.getElementById("canvasFirmaLogin");
-    if (!canvasLoginElem) {
-      alert("Error: No se encontró el cuadro de firma.");
-      return;
+    if (esVisibleFirma && !firmaGuardadaLocal) {
+        const canvasLoginElem = document.getElementById("canvasFirmaLogin");
+        if (!canvasLoginElem) {
+            alert("Error: No se encontró el cuadro de firma.");
+            return;
+        }
+        
+        firmaBase64 = canvasLoginElem.toDataURL("image/png");
+        
+        if (firmaBase64.length < 1500) {
+            alert("Debes dibujar la firma del administrador/vendedor para continuar.");
+            return;
+        }
+        
+        procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal);
+    } else {
+        firmaBase64 = localStorage.getItem("firmaVendedorBase64") || "";
     }
-    
-    firmaBase64 = canvasLoginElem.toDataURL("image/png");
-    
-    if (firmaBase64.length < 1500) {
-      alert("Debes dibujar la firma del administrador/vendedor para continuar.");
-      return;
-    }
-    
-    procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal);
-  } else {
-    firmaBase64 = localStorage.getItem("firmaVendedorBase64") || "";
-  }
 
-  // Validar PINs
-  if (pinIngresado === pinJefe) {
-    localStorage.setItem("sesionActiva", "true");
-    localStorage.setItem("rol", "jefe");
-    localStorage.setItem("empleado", "Administrador");
-    iniciarEntornoTrabajo();
-  } else if (pinIngresado === pinEmpleado) {
-    if (!nombreInput) {
-      alert("Por favor ingresa tu nombre de empleado para continuar.");
-      return;
+    if (!pinIngresado) {
+        alert("Por favor ingresa tu PIN de acceso.");
+        return;
     }
-    localStorage.setItem("sesionActiva", "true");
-    localStorage.setItem("rol", "empleado");
-    localStorage.setItem("empleado", nombreInput);
-    iniciarEntornoTrabajo();
-  } else {
-    alert("PIN incorrecto.");
-  }
+
+    // Validación como JEFE
+    if (pinJefe && pinIngresado === pinJefe) {
+        localStorage.setItem("sesionActiva", "true");
+        localStorage.setItem("rol", "jefe");
+        // El jefe guarda su nombre corporativo/empresa para ver todo lo de sus empleados
+        localStorage.setItem("empleado", clienteEmpresa); 
+
+        // Variables globales de respaldo para el historial
+        window.usuarioLogueado = clienteEmpresa;
+        window.rolLogueado = "jefe";
+
+        iniciarEntornoTrabajo();
+    } 
+    // Validación como EMPLEADO
+    else if (pinEmpleado && pinIngresado === pinEmpleado) {
+        if (!nombreInput) {
+            alert("Por favor ingresa tu nombre de empleado para continuar.");
+            return;
+        }
+        localStorage.setItem("sesionActiva", "true");
+        localStorage.setItem("rol", "empleado");
+        localStorage.setItem("empleado", nombreInput);
+
+        // Variables globales de respaldo para el historial
+        window.usuarioLogueado = nombreInput;
+        window.rolLogueado = "empleado";
+
+        iniciarEntornoTrabajo();
+    } 
+    else {
+        alert("PIN incorrecto. Por favor verifícalo.");
+    }
 }
 
 function procesarFirmaLoginExitoso(firmaBase64, firmaGuardadaLocal) {
@@ -367,6 +388,9 @@ async function irAFacturacion() {
 /* ==========================================
    HISTORIAL DE VENTAS (ACTUALIZADO CON FILTRO JEFE/EMPLEADO)
    ================================---------- */
+/* ==========================================
+   HISTORIAL DE VENTAS (ACTUALIZADO)
+   ========================================== */
 function verHistorial() {
     mostrarVista('historialVista');
     
@@ -376,18 +400,21 @@ function verHistorial() {
         return;
     }
 
-    // Obtenemos el empleado y rol actuales desde localStorage para enviarlos al backend
+    // Obtenemos los datos correctos que guardó el login() en localStorage
     const empleadoActual = localStorage.getItem("empleado") || "";
     const rolActual = localStorage.getItem("rol") || "";
-    const esJefe = (rolActual === "jefe" || empleadoActual.toLowerCase() === "administrador");
+    const esJefe = (rolActual.toLowerCase() === "jefe" || empleadoActual.toLowerCase() === "administrador");
     
-    // Construimos la URL enviando los parámetros necesarios para que el backend filtre si es empleado
+    // Construimos la URL enviando los parámetros GET al Apps Script
     const urlConsulta = `${urlAPI}?accion=obtenerHistorial&empleado=${encodeURIComponent(empleadoActual)}&esJefe=${esJefe}`;
 
     fetch(urlConsulta)
         .then(res => res.json())
         .then(data => {
-            if (!data.success || !data.historial) return;
+            if (!data.success || !data.historial) {
+                console.warn("No se encontró historial o la respuesta no fue exitosa.");
+                return;
+            }
             
             let historial = data.historial;
             let contenedor = document.getElementById("listaHistorial");
