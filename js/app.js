@@ -115,10 +115,10 @@ window.addEventListener("DOMContentLoaded", async () => {
    ================================---------- */
 async function activar() {
   const codigoInput = document.getElementById("codigo");
-  const empleadoInput = document.getElementById("nombreEmpleado");
+  const empleadoInput = document.getElementById("empleado"); // Asegúrate de que tu input de nombre tenga id="empleado"
   
   const codigo = codigoInput ? codigoInput.value.trim() : "";
-  const nombreEmpleado = empleadoInput ? empleadoInput.value.trim() : "Empleado";
+  const nombreEmpleado = empleadoInput ? empleadoInput.value.trim() : "";
 
   if (!codigo || !nombreEmpleado) {
     alert("Por favor ingresa el código de activación y tu nombre.");
@@ -126,14 +126,14 @@ async function activar() {
   }
 
   try {
-    const respuesta = await fetch(`${urlMaster}?accion=activar&codigo=${codigo}&empleado=${encodeURIComponent(nombreEmpleado)}`, {
+    // Enviamos tanto el código como el nombre del empleado a la API
+    const respuesta = await fetch(`${urlMaster}?accion=activar&codigo=${encodeURIComponent(codigo)}&empleado=${encodeURIComponent(nombreEmpleado)}`, {
       redirect: 'follow'
     });
     
     const resultado = await respuesta.json();
 
     if (resultado.success) {
-      // ✅ Corregido: Se lee de 'resultado' y se usa 'urlClienteAPI'
       localStorage.setItem("pinJefe", resultado.pinJefe);
       localStorage.setItem("pinEmpleado", resultado.pinEmpleado);
       localStorage.setItem("clienteEmpresa", resultado.clienteEmpresa || ""); 
