@@ -113,7 +113,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 /* ==========================================
    MÓDULO DE ACTIVACIÓN Y LOGIN
    ================================---------- */
-async function activar() {
+window.activar = async function activar() {
   const codigoInput = document.getElementById("codigo");
   const empleadoInput = document.getElementById("empleado"); // Asegúrate de que tu input de nombre tenga id="empleado"
   
