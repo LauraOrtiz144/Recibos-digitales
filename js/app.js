@@ -875,7 +875,6 @@ function descargarHistorialPDF() {
     });
 }
 
-let firmaVendedorGlobalEnMemoria = ""; // Aquí guardaremos la firma temporalmente mientras estás en la sesión
 /* ==========================================
    CARRITO Y FACTURACIÓN (Actualizado para tu HTML)
    ================================---------- */
