@@ -9,47 +9,59 @@ function obtenerDeviceId() {
   return id;
 }
 
-function activar() {
-  const codigo = document.getElementById("codigo").value;
+async function activar() {
+  const codigoInput = document.getElementById("codigo");
   const mensaje = document.getElementById("mensaje");
+  const codigo = codigoInput ? codigoInput.value.trim() : "";
 
   if (!codigo) {
     mensaje.innerText = "Ingrese un código";
     return;
   }
 
-  let licencia = JSON.parse(localStorage.getItem("licencia"));
-
-  if (!licencia) {
-    licencia = {
-      codigo: codigo,
-      maxDispositivos: 3,
-      dispositivos: []
-    };
-  }
-
+  mensaje.innerText = "Verificando licencia...";
   const deviceId = obtenerDeviceId();
 
-  if (!licencia.dispositivos.includes(deviceId)) {
+  // ⚠️ REEMPLAZA ESTA URL CON TU URL DE IMPLEMENTACIÓN DE APPS SCRIPT DE LICENCIAS
+  const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycby9sTsRxIVXscPY-fOs4ynBNXGyLDis0pbFAZE3r9doFrjqeefTnEVvew5jzIvf-02t/exec";
 
-    if (licencia.dispositivos.length >= licencia.maxDispositivos) {
-      mensaje.innerText = "Límite de dispositivos alcanzado";
-      return;
+  try {
+    const response = await fetch(URL_APPS_SCRIPT, {
+      method: "POST",
+      body: JSON.stringify({
+        accion: "activar",
+        codigo: codigo,
+        dispositivoId: deviceId,
+        empleado: "Administrador / Dispositivo Principal"
+      })
+    });
+
+    const resultado = await response.json();
+
+    if (resultado.success) {
+      mensaje.innerText = "Activado correctamente";
+
+      // Guardamos los datos clave devueltos por tu base central
+      localStorage.setItem("licenciaActiva", "true");
+      localStorage.setItem("codigoLicencia", codigo);
+      localStorage.setItem("urlCliente", resultado.urlCliente || "");
+      localStorage.setItem("pinJefe", resultado.pinJefe || "9999");
+      localStorage.setItem("pinEmpleado", resultado.pinEmpleado || "1234");
+
+      setTimeout(() => {
+        window.location.href = "app.html"; // O tu pantalla de inicio de sesión
+      }, 1000);
+    } else {
+      mensaje.innerText = resultado.message || "Código inválido o bloqueado";
     }
 
-    licencia.dispositivos.push(deviceId);
+  } catch (error) {
+    console.error("Error de red:", error);
+    mensaje.innerText = "Error al conectar con la base de datos.";
   }
-
-  localStorage.setItem("licencia", JSON.stringify(licencia));
-
-  mensaje.innerText = "Activado correctamente";
-
-  setTimeout(() => {
-    window.location.href = "app.html";
-  }, 1000);
 }
 
-// 🔥 ESTO ES LA CLAVE (evita el error)
+// Esto se queda tal cual lo tienes para evitar errores
 document.addEventListener("DOMContentLoaded", function () {
   const btn = document.getElementById("btnActivar");
 
