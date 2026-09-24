@@ -152,6 +152,7 @@ window.activar = async function activar() {
     alert("Error de conexión. Verifica tu internet o la URL Master.");
   }
 }
+
 async function login() {
     const pinIngresado = document.getElementById("pin")?.value.trim() || "";
     const nombreInput = document.getElementById("nombreLogin")?.value.trim() || "";
@@ -182,18 +183,19 @@ async function login() {
         }
     }
 
-    const datosEnvio = {
+    // Empaquetamos los datos en parámetros GET para saltar el bloqueo CORS de GitHub Pages
+    const params = new URLSearchParams({
         accion: "login",
         pin: pinIngresado,
         empleado: nombreInput,
-        firmaCorporativa: firmaBase64 // Se envía para que el Apps Script lo guarde en J2 si está vacío
-    };
+        firmaCorporativa: firmaBase64
+    });
 
     try {
-        const response = await fetch(urlAPI, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(datosEnvio)
+        // Usamos método GET para que Google Apps Script responda sin restricciones CORS
+        const response = await fetch(`${urlAPI}?${params.toString()}`, {
+            method: "GET",
+            redirect: "follow"
         });
         
         const resultado = await response.json();
