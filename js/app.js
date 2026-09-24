@@ -838,74 +838,6 @@ function limpiarCanvasLogin() {
   }
 }
 
-async function obtenerFirmaDesdeNube() {
-  const urlAPI = obtenerUrlAPI();
-  if (!urlAPI) {
-    console.warn("No hay URL de API configurada.");
-    return "";
-  }
-  
-  try {
-    const respuesta = await fetch(`${urlAPI}?accion=obtenerFirmaCorporativa&t=${Date.now()}`, { 
-      method: 'GET',
-      redirect: 'follow' 
-    });
-    
-    const resultado = await respuesta.json();
-    let base64Firma = resultado.urlFirma || resultado.firma || "";
-
-    if (base64Firma) {
-      base64Firma = base64Firma.trim();
-      if (base64Firma.startsWith("data:image")) {
-        return base64Firma;
-      } else {
-        return "data:image/png;base64," + base64Firma;
-      }
-    }
-  } catch (e) {
-    console.error("Error al intentar obtener la firma corporativa:", e);
-  }
-  return "";
-}
-
-/* ==========================================
-   CARRITO Y FACTURACIÓN (Actualizado para tu HTML)
-   ================================---------- */
-function actualizarFactura() {
-    total = 0;
-    const cuerpoTabla = document.getElementById("tablaFactura");
-    
-    if (!cuerpoTabla) return;
-
-    let htmlTabla = "";
-    
-    factura.forEach((item, index) => {
-        total += Number(item.subtotal) || 0;
-        htmlTabla += `
-            <tr>
-                <td>${item.nombre}</td>
-                <td>${item.cantidad}</td>
-                <td>$${formatoMoneda(item.precio)}</td>
-                <td>$${formatoMoneda(item.subtotal)}
-                    <button type="button" onclick="eliminarItemFactura(${index})" style="background:#e74c3c; color:white; border:none; padding:2px 6px; border-radius:3px; cursor:pointer; margin-left: 8px;">X</button>
-                </td>
-            </tr>
-        `;
-    });
-
-    cuerpoTabla.innerHTML = htmlTabla;
-
-    const totalEl = document.getElementById("total");
-    if (totalEl) {
-        totalEl.innerText = formatoMoneda(total);
-    }
-}
-
-function eliminarItemFactura(index) {
-    factura.splice(index, 1);
-    actualizarFactura();
-}
-
 function descargarHistorialPDF() {
     const elemento = document.getElementById("historialPDF");
     if (!elemento) {
@@ -944,22 +876,73 @@ function descargarHistorialPDF() {
 }
 
 let firmaVendedorGlobalEnMemoria = ""; // Aquí guardaremos la firma temporalmente mientras estás en la sesión
+/* ==========================================
+   CARRITO Y FACTURACIÓN (Actualizado para tu HTML)
+   ================================---------- */
+function actualizarFactura() {
+    total = 0;
+    const cuerpoTabla = document.getElementById("tablaFactura");
+    
+    if (!cuerpoTabla) return;
 
-// Función para ir a buscar la firma directo de la celda J2 del Google Sheets
-async function obtenerFirmaDesdeNube() {
-    const urlAPI = obtenerUrlAPI();
-    if (!urlAPI) return "";
+    let htmlTabla = "";
+    
+    factura.forEach((item, index) => {
+        total += Number(item.subtotal) || 0;
+        htmlTabla += `
+            <tr>
+                <td>${item.nombre}</td>
+                <td>${item.cantidad}</td>
+                <td>$${formatoMoneda(item.precio)}</td>
+                <td>$${formatoMoneda(item.subtotal)}
+                    <button type="button" onclick="eliminarItemFactura(${index})" style="background:#e74c3c; color:white; border:none; padding:2px 6px; border-radius:3px; cursor:pointer; margin-left: 8px;">X</button>
+                </td>
+            </tr>
+        `;
+    });
 
-    try {
-        const respuesta = await fetch(`${urlAPI}?accion=obtenerfirmacorporativa`);
-        const resultado = await respuesta.json();
-        
-        if (resultado.success && resultado.urlFirma) {
-            return resultado.urlFirma; // Retorna el base64 de la celda J2
-        }
-    } catch (error) {
-        console.error("Error al obtener la firma corporativa:", error);
+    cuerpoTabla.innerHTML = htmlTabla;
+
+    const totalEl = document.getElementById("total");
+    if (totalEl) {
+        totalEl.innerText = formatoMoneda(total);
     }
-    return "";
 }
+
+function eliminarItemFactura(index) {
+    factura.splice(index, 1);
+    actualizarFactura();
+}
+
+async function obtenerFirmaDesdeNube() {
+  const urlAPI = obtenerUrlAPI();
+  if (!urlAPI) {
+    console.warn("No hay URL de API configurada.");
+    return "";
+  }
+  
+  try {
+    const respuesta = await fetch(`${urlAPI}?accion=obtenerFirmaCorporativa&t=${Date.now()}`, { 
+      method: 'GET',
+      redirect: 'follow' 
+    });
+    
+    const resultado = await respuesta.json();
+    let base64Firma = resultado.urlFirma || resultado.firma || "";
+
+    if (base64Firma) {
+      base64Firma = base64Firma.trim();
+      if (base64Firma.startsWith("data:image")) {
+        return base64Firma;
+      } else {
+        return "data:image/png;base64," + base64Firma;
+      }
+    }
+  } catch (e) {
+    console.error("Error al intentar obtener la firma corporativa:", e);
+  }
+   return "";
+} // <--- ¡FALTA ESTA LLAVE DE CIERRE AL FINAL DEL ARCHIVO!
+
+
 
