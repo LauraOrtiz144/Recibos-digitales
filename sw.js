@@ -3,21 +3,19 @@ const CACHE_NAME = 'remisiones-app-v1';
 const ASSETS = [
   './',
   './index.html',
-  './app.html',           // Lo agregué porque está en tu árbol
-  './css/style.css',      // Ruta correcta según tu árbol
-  './js/app.js',          // Ruta correcta según tu árbol
-  './js/db.js',           // Ruta correcta según tu árbol
-  './js/licencia.js',     // Ruta correcta según tu árbol
+  './app.html',
+  './css/style.css',
+  './js/app.js',
+  './js/db.js',
+  './js/licencia.js',
   './manifest.json',
-  './icons/icon-192.png', // Para que el ícono funcione sin internet
-  './icons/icon-512.png', // Para que el ícono funcione sin internet
-  'https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap',
-  'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'
+  './sw.js',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
+  // ¡Ojo! Retiramos los CDNs de aquí para evitar que fallen en la instalación.
 ];
 
-// Instalar el Service Worker y guardar recursos en caché
+// Instalar el Service Worker y guardar recursos locales en caché
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -43,14 +41,17 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// Interceptar peticiones para que funcione Offline
+// Interceptar peticiones para que funcione Offline (esto también cacheará los CDNs sobre la marcha)
 self.addEventListener('fetch', (e) => {
   e.respondWith(
     caches.match(e.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
-      return fetch(e.request);
+      return fetch(e.request).then((response) => {
+        // Opcional: puedes clonar y guardar dinámicamente peticiones exitosas aquí si lo deseas
+        return response;
+      });
     })
   );
 });
