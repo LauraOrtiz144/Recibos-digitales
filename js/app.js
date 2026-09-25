@@ -183,13 +183,13 @@ async function login() {
         }
     }
 
-    // Empaquetamos los datos en parámetros GET para saltar el bloqueo CORS de GitHub Pages
-    const params = new URLSearchParams({
+
+   const datosEnvio = {
         accion: "login",
         pin: pinIngresado,
         empleado: nombreInput,
         firmaCorporativa: firmaBase64
-    });
+    };
 
     try {
         const response = await fetch(urlAPI, {
