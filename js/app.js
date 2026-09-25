@@ -192,12 +192,14 @@ async function login() {
     });
 
     try {
-        // Usamos método GET para que Google Apps Script responda sin restricciones CORS
-        const response = await fetch(`${urlAPI}?${params.toString()}`, {
-            method: "GET",
+        const response = await fetch(urlAPI, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(datosEnvio),
             redirect: "follow"
         });
-        
+
+        const textoRespuesta = await response.text();
         const resultado = await response.json();
 
         if (resultado.success) {
