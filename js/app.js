@@ -168,6 +168,13 @@ async function login() {
         return;
     }
 
+     const datosEnvio = {
+        accion: "login",
+        pin: pinIngresado,
+        empleado: nombreInput,
+        firmaCorporativa: firmaBase64
+    };
+
     let firmaBase64 = "";
     const contenedorSeccionFirma = document.getElementById("seccionFirmaUnica");
     
@@ -183,13 +190,6 @@ async function login() {
         }
     }
 
-
-   const datosEnvio = {
-        accion: "login",
-        pin: pinIngresado,
-        empleado: nombreInput,
-        firmaCorporativa: firmaBase64
-    };
 
     try {
         const response = await fetch(urlAPI, {
