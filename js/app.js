@@ -728,3 +728,5 @@ async function compartirPDF() {
   } catch (e) { alert("Error: " + e.message); }
   finally { enviando = false; }
 }
+
+
