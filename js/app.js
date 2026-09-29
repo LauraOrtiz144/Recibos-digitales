@@ -182,7 +182,6 @@ async function irAFacturacion() {
    HISTORIAL DE VENTAS (ACTUALIZADO)
    ========================================== */
 function verHistorial() {
-    mostrarVista('historialVista');
     
     const urlAPI = obtenerUrlAPI();
     if (!urlAPI) {
