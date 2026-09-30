@@ -182,7 +182,6 @@ async function irAFacturacion() {
    HISTORIAL DE VENTAS (ACTUALIZADO)
    ========================================== */
 function verHistorial() {
-    
     const urlAPI = obtenerUrlAPI();
     if (!urlAPI) {
         alert("No se encontró la URL de la API.");
@@ -728,8 +727,5 @@ async function compartirPDF() {
   } catch (e) { alert("Error: " + e.message); }
   finally { enviando = false; }
 }
-
-
-
 
 
