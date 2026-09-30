@@ -625,7 +625,10 @@ async function login() {
   }
   try {
     const j = await api("login", { codigo: localStorage.getItem("codigoLicencia"), dispositivoId: obtenerDeviceId(), pin, empleado: nombre, firmaCorporativa: firma }, true);
-    if (!j.success) { alert(j.message || "PIN incorrecto."); return; }
+    if (!j.success) {
+      if (j.requiereFirma && sec) { sec.style.display = "block"; if (!window._canvasLoginListo) { inicializarCanvasLogin(); window._canvasLoginListo = true; } }
+      alert(j.message || "PIN incorrecto."); return;
+    }
     localStorage.setItem("sesion", JSON.stringify({ token: j.token, rol: j.rol, empleado: j.empleado }));
     document.getElementById("pin").value = "";
     iniciarEntornoTrabajo();
@@ -661,13 +664,9 @@ async function actualizarNumeroRemisionDesdeNube() {
   } catch (e) { console.error(e); }
 }
 
-async function verificarSiRequiereFirmaLogin() {
+function verificarSiRequiereFirmaLogin() {
   const sec = document.getElementById("seccionFirmaUnica");
-  try {
-    const j = await api("obtenerfirmacorporativa");
-    if (j.existe) { if (sec) sec.style.display = "none"; }
-    else { if (sec) sec.style.display = "block"; inicializarCanvasLogin(); }
-  } catch (e) { console.error(e); }
+  if (sec) sec.style.display = "none"; // se muestra solo si el servidor dice que este usuario aún no tiene firma
 }
 
 async function obtenerFirmaDesdeNube() {
@@ -727,5 +726,4 @@ async function compartirPDF() {
   } catch (e) { alert("Error: " + e.message); }
   finally { enviando = false; }
 }
-
 
