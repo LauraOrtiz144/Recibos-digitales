@@ -696,34 +696,62 @@ function configurarBuscador() {
   });
 }
 
-/* ===== ENVIAR REMISIÓN: guarda primero (el servidor asigna número y valida stock), luego comparte el PDF ===== */
-let enviando = false;
-async function compartirPDF() {
-  if (enviando) return;
-  if (!factura.length) { alert("No hay productos en la remisión."); return; }
+/* ===== ENVIAR REMISIÓN: primero se comparte el PDF; solo si se compartió, se guarda en la base y se descuenta el inventario ===== */
+let enviando = false, pendienteGuardar = false;
+
+async function guardarYCerrar(numeroPDF) {
   const cv = document.getElementById("firmaCanvas");
-  if (!cv || cv.toDataURL("image/png").length < 1500) { alert("Falta la firma del cliente."); return; }
   const v = id => (document.getElementById(id)?.value || "").trim();
-  enviando = true;
   try {
     const j = await api("registrarremisionmasiva", {
       items: factura.map(i => ({ codigo_interno: i.codigo_interno, cantidad: i.cantidad })),
       cliente: v("clienteNombre"), estadoPago: v("selectEstadoPago") || "Pagado", firma: cv.toDataURL("image/png")
     }, true);
-    if (!j.success) { alert(j.message || "No se pudo guardar la remisión."); cargarInventarioDesdeNube(); return; }
-    numeroRemision = j.numRemision;
-    const { doc, nombreArchivo, numeroFormateado } = prepararDocumentoPDF();
-    const file = new File([doc.output("blob")], nombreArchivo, { type: "application/pdf" });
-    try {
-      if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ title: "Remisión", text: `Remisión No. ${numeroFormateado}`, files: [file] });
-      else doc.save(nombreArchivo);
-    } catch (e) { /* compartir cancelado: la remisión ya quedó guardada */ }
+    if (!j.success) {
+      pendienteGuardar = true;
+      alert("El PDF ya se envió, pero NO se pudo guardar: " + (j.message || "error") + "\nPulsa Enviar otra vez para reintentar solo el guardado (no se reenvía el PDF).");
+      return;
+    }
+    pendienteGuardar = false;
+    if (j.numRemision !== numeroPDF) alert("Atención: el PDF salió con el No. " + String(numeroPDF).padStart(4, "0") + " pero quedó guardada como No. " + String(j.numRemision).padStart(4, "0") + " porque otro usuario guardó antes. Avisa al cliente.");
     factura = []; actualizarFactura();
     ["clienteNombre", "clienteTelefono", "clienteDireccion"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
     limpiarFirma();
     cargarInventarioDesdeNube();
     mostrarVista("historialVista");
-  } catch (e) { alert("Error: " + e.message); }
-  finally { enviando = false; }
+  } catch (e) {
+    pendienteGuardar = true;
+    alert("El PDF ya se envió, pero no se pudo guardar (" + e.message + "). Pulsa Enviar otra vez para reintentar el guardado.");
+  }
 }
+
+async function compartirPDF() {
+  if (enviando) return;
+  if (!factura.length) { alert("No hay productos en la remisión."); return; }
+  enviando = true;
+  const numeroPDF = numeroRemision;
+  try {
+    if (pendienteGuardar) { await guardarYCerrar(numeroPDF); return; }
+    const cv = document.getElementById("firmaCanvas");
+    if (!cv || cv.toDataURL("image/png").length < 1500) { alert("Falta la firma del cliente."); return; }
+    // Se comparte de inmediato, dentro del toque del usuario (si se espera a la red antes, el celular bloquea el compartir)
+    const { doc, nombreArchivo, numeroFormateado } = prepararDocumentoPDF();
+    const file = new File([doc.output("blob")], nombreArchivo, { type: "application/pdf" });
+    let enviado = false;
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ title: "Remisión", text: `Remisión No. ${numeroFormateado}`, files: [file] });
+        enviado = true;
+      } else {
+        doc.save(nombreArchivo);
+        enviado = confirm("Se descargó el PDF. ¿Ya lo enviaste al cliente?\nAceptar = guardar la remisión.");
+      }
+    } catch (e) {
+      if (e.name !== "AbortError") alert("No se pudo compartir el PDF: " + e.message);
+    }
+    if (!enviado) { alert("Envío cancelado: la remisión NO se guardó y el inventario no cambió."); return; }
+    await guardarYCerrar(numeroPDF);
+  } finally { enviando = false; }
+}
+
 
