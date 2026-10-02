@@ -289,6 +289,7 @@ function verHistorial() {
                 `;
             }
 
+            historialAgrupado = Object.values(remisionesAgrupadas);
             contenedor.innerHTML = html;
             if (spanTotalDia) {
                 spanTotalDia.innerText = formatoMoneda(totalGeneralDia);
@@ -488,41 +489,84 @@ function limpiarCanvasLogin() {
   }
 }
 
-function descargarHistorialPDF() {
-    const elemento = document.getElementById("historialPDF");
-    if (!elemento) {
-        alert("No se encontró el contenedor del historial.");
-        return;
-    }
+let historialAgrupado = [];
 
-    const opciones = {
-        margin: 10,
-        filename: 'Historial_Ventas.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+function descargarHistorialPDF() {
+    if (!historialAgrupado.length) { alert("No hay ventas en el historial para exportar."); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const W = 210, H = 297, M = 14, LIMITE = H - 18;
+    const azul = [41, 128, 185], gris = [100, 116, 139], oscuro = [30, 41, 59];
+    const ses = getSesion() || {};
+    const pad = n => String(n).padStart(4, "0");
+    const lista = [...historialAgrupado].sort((a, b) => (Number(b.numRemision) || 0) - (Number(a.numRemision) || 0));
+    const totalGeneral = lista.reduce((t, r) => t + r.totalRemision, 0);
+    const totalPend = lista.filter(r => r.estadoPago !== "Pagado").reduce((t, r) => t + r.totalRemision, 0);
+
+    // Encabezado
+    doc.setFillColor(...azul); doc.rect(0, 0, W, 30, "F");
+    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.text("FORTIZ", M, 14);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.text("Historial de ventas", M, 22);
+    doc.setFontSize(9);
+    doc.text("Generado: " + new Date().toLocaleString("es-CO"), W - M, 14, { align: "right" });
+    doc.text(ses.rol === "jefe" ? "Todas las ventas" : "Ventas de " + (ses.empleado || ""), W - M, 22, { align: "right" });
+
+    // Resumen
+    const bw = (W - 2 * M - 8) / 3;
+    [["Remisiones", String(lista.length)], ["Total vendido", "$" + formatoMoneda(totalGeneral)], ["Pendiente por cobrar", "$" + formatoMoneda(totalPend)]].forEach((c, i) => {
+        const x = M + i * (bw + 4);
+        doc.setFillColor(241, 245, 249); doc.roundedRect(x, 37, bw, 18, 2, 2, "F");
+        doc.setTextColor(...gris); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text(c[0], x + 4, 44);
+        doc.setTextColor(...oscuro); doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.text(c[1], x + 4, 51.5);
+    });
+
+    let y = 64;
+    const cabeceraTabla = () => {
+        doc.setTextColor(...gris); doc.setFont("helvetica", "bold"); doc.setFontSize(8);
+        doc.text("Producto", M + 3, y); doc.text("Cant", 140, y, { align: "right" }); doc.text("Subtotal", W - M - 3, y, { align: "right" });
+        doc.setDrawColor(203, 213, 225); doc.line(M, y + 2, W - M, y + 2);
+        y += 7;
     };
 
-    html2pdf().from(elemento).set(opciones).outputPdf('blob').then(async (pdfBlob) => {
-        const file = new File([pdfBlob], "Historial_Ventas.pdf", { type: "application/pdf" });
-
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-                await navigator.share({
-                    title: "Historial de Ventas",
-                    text: "Aquí tienes el reporte del historial de ventas.",
-                    files: [file]
-                });
-                return;
-            } catch (e) {
-                console.log("Compartir cancelado o no disponible, intentando descarga directa.");
-          }
-        }
-
-        html2pdf().from(elemento).set(opciones).save();
-    }).catch(err => {
-        console.error("Error al generar PDF del historial:", err);
+    lista.forEach(r => {
+        if (y + 40 > LIMITE) { doc.addPage(); y = 20; }
+        doc.setFillColor(241, 245, 249); doc.roundedRect(M, y, W - 2 * M, 10, 1.5, 1.5, "F");
+        doc.setTextColor(37, 99, 235); doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.text("Remisión #" + pad(r.numRemision), M + 3, y + 6.5);
+        doc.setTextColor(...gris); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text(String(r.fecha), W - M - 3, y + 6.5, { align: "right" });
+        y += 15;
+        doc.setTextColor(...oscuro); doc.setFontSize(9);
+        doc.text("Cliente: " + String(r.cliente).slice(0, 40), M + 3, y);
+        doc.text("Empleado: " + String(r.empleado).slice(0, 30), 115, y);
+        y += 7;
+        cabeceraTabla();
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...oscuro);
+        r.items.forEach(it => {
+            if (y + 20 > LIMITE) { doc.addPage(); y = 20; doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...gris); doc.text("Remisión #" + pad(r.numRemision) + " (continuación)", M + 3, y); y += 7; cabeceraTabla(); doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...oscuro); }
+            doc.text(String(it.producto).slice(0, 60), M + 3, y);
+            doc.text(String(it.cantidad), 140, y, { align: "right" });
+            doc.text("$" + formatoMoneda(it.subtotal), W - M - 3, y, { align: "right" });
+            doc.setDrawColor(235, 238, 243); doc.line(M, y + 2, W - M, y + 2);
+            y += 7;
+        });
+        const pagado = r.estadoPago === "Pagado";
+        doc.setFillColor(...(pagado ? [39, 174, 96] : [230, 126, 34])); doc.roundedRect(M + 3, y, 24, 6.5, 1.2, 1.2, "F");
+        doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.text(String(r.estadoPago), M + 15, y + 4.5, { align: "center" });
+        doc.setTextColor(...oscuro); doc.setFontSize(10); doc.text("Total: $" + formatoMoneda(r.totalRemision), W - M - 3, y + 4.8, { align: "right" });
+        y += 16;
     });
+
+    // Pie de página
+    const n = doc.getNumberOfPages();
+    for (let i = 1; i <= n; i++) {
+        doc.setPage(i); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(150, 150, 150);
+        doc.text("Página " + i + " de " + n, W / 2, H - 8, { align: "center" });
+    }
+
+    const nombre = "Historial_Ventas_" + new Date().toISOString().slice(0, 10) + ".pdf";
+    const file = new File([doc.output("blob")], nombre, { type: "application/pdf" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ title: "Historial de ventas", files: [file] }).catch(e => { if (e.name !== "AbortError") doc.save(nombre); });
+    } else { doc.save(nombre); }
 }
 
 /* ==========================================
@@ -753,5 +797,4 @@ async function compartirPDF() {
     await guardarYCerrar(numeroPDF);
   } finally { enviando = false; }
 }
-
 
