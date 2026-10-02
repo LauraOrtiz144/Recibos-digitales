@@ -301,90 +301,100 @@ function verHistorial() {
    GENERADOR PDF Y COMPARTIR
    ================================---------- */
 function prepararDocumentoPDF() {
-    const cliente = document.getElementById("clienteNombre")?.value || "Cliente";
-    const telefono = document.getElementById("clienteTelefono")?.value || "";
-    const direccion = document.getElementById("clienteDireccion")?.value || "";
+    const valor = id => (document.getElementById(id)?.value || "").trim();
+    const cliente = valor("clienteNombre") || "Cliente";
+    const telefono = valor("clienteTelefono");
+    const direccion = valor("clienteDireccion");
+    const pagado = (valor("selectEstadoPago") || "Pagado") !== "Pendiente";
+    const atendio = (getSesion() || {}).empleado || "";
     const numeroFormateado = String(numeroRemision).padStart(4, '0');
     const nombreArchivo = `Remision_${cliente}_${numeroFormateado}.pdf`;
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const W = 210, H = 297, M = 14, LIMITE = H - 20;
+    const azul = [41, 128, 185], gris = [100, 116, 139], oscuro = [30, 41, 59];
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.text("FORTIZ", 14, 20);
+    /* --- Encabezado --- */
+    doc.setFillColor(...azul); doc.rect(0, 0, W, 36, "F");
+    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.text("FORTIZ", M, 17);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+    doc.text("NIT: 12345678-9", M, 23); doc.text("Tel: 301 7005 428  |  Bogotá D.C.", M, 28);
+    doc.setFillColor(255, 255, 255); doc.roundedRect(W - M - 52, 8, 52, 21, 2, 2, "F");
+    doc.setTextColor(...gris); doc.setFontSize(8); doc.text("REMISIÓN DE ENTREGA", W - M - 26, 14, { align: "center" });
+    doc.setTextColor(...azul); doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("No. " + numeroFormateado, W - M - 26, 21.5, { align: "center" });
+    doc.setTextColor(...gris); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text(new Date().toLocaleDateString("es-CO"), W - M - 26, 26.5, { align: "center" });
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text("NIT: 12345678-9", 14, 25);
-    doc.text("Tel: 301 7005 428", 14, 30);
-    doc.text("Bogotá D.C.", 14, 35);
+    /* --- Datos del cliente --- */
+    doc.setFillColor(241, 245, 249); doc.roundedRect(M, 43, W - 2 * M, 28, 2, 2, "F");
+    const fila = (etiqueta, texto, y) => {
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...gris); doc.text(etiqueta, M + 4, y);
+        doc.setFont("helvetica", "normal"); doc.setTextColor(...oscuro); doc.text(doc.splitTextToSize(texto || "-", 95)[0], M + 28, y);
+    };
+    fila("Cliente:", cliente, 51); fila("Teléfono:", telefono, 58); fila("Dirección:", direccion, 65);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(...gris); doc.text("ESTADO DE PAGO", W - M - 4, 50, { align: "right" });
+    doc.setFillColor(...(pagado ? [39, 174, 96] : [230, 126, 34])); doc.roundedRect(W - M - 34, 53, 30, 8, 1.5, 1.5, "F");
+    doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.text(pagado ? "PAGADO" : "PENDIENTE", W - M - 19, 58.5, { align: "center" });
+    if (atendio) { doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...gris); doc.text("Atendió: " + atendio, W - M - 4, 68, { align: "right" }); }
 
-    doc.rect(145, 14, 50, 18);
-    doc.setFont("helvetica", "bold");
-    doc.text(`No. ${numeroFormateado}`, 148, 21);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Fecha: ${new Date().toLocaleDateString("es-CO")}`, 148, 28);
-
-    doc.rect(14, 42, 181, 24);
-    doc.setFont("helvetica", "bold");
-    doc.text("Cliente:", 18, 49);
-    doc.text("Teléfono:", 18, 55);
-    doc.text("Dirección:", 18, 61);
-
-    doc.setFont("helvetica", "normal");
-    doc.text(cliente, 45, 49);
-    doc.text(telefono, 45, 55);
-    doc.text(direccion, 45, 61);
-
-    let startY = 75;
-    doc.setFillColor(41, 128, 185);
-    doc.rect(14, startY, 181, 8, "F");
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.text("Descripción", 18, startY + 5.5);
-    doc.text("Cant", 120, startY + 5.5);
-    doc.text("Precio", 145, startY + 5.5);
-    doc.text("Subtotal", 170, startY + 5.5);
-
-    startY += 8;
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "normal");
-
-    factura.forEach(item => {
-        doc.text(String(item.nombre), 18, startY + 6);
-        doc.text(String(item.cantidad), 120, startY + 6);
-        doc.text(`$${formatoMoneda(item.precio)}`, 145, startY + 6);
-        doc.text(`$${formatoMoneda(item.subtotal)}`, 170, startY + 6);
-        doc.line(14, startY + 9, 195, startY + 9);
-        startY += 9;
+    /* --- Tabla de productos --- */
+    let y = 80;
+    const cabecera = () => {
+        doc.setFillColor(...azul); doc.roundedRect(M, y, W - 2 * M, 9, 1.5, 1.5, "F");
+        doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+        doc.text("Descripción", M + 4, y + 6); doc.text("Cant", 128, y + 6, { align: "right" });
+        doc.text("Precio", 160, y + 6, { align: "right" }); doc.text("Subtotal", W - M - 4, y + 6, { align: "right" });
+        y += 9;
+    };
+    cabecera();
+    factura.forEach((item, i) => {
+        if (y + 9 > LIMITE) { doc.addPage(); y = 20; cabecera(); }
+        if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(M, y, W - 2 * M, 9, "F"); }
+        doc.setTextColor(...oscuro); doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+        doc.text(doc.splitTextToSize(String(item.nombre), 80)[0], M + 4, y + 6);
+        doc.text(String(item.cantidad), 128, y + 6, { align: "right" });
+        doc.text("$" + formatoMoneda(item.precio), 160, y + 6, { align: "right" });
+        doc.text("$" + formatoMoneda(item.subtotal), W - M - 4, y + 6, { align: "right" });
+        doc.setDrawColor(226, 232, 240); doc.line(M, y + 9, W - M, y + 9);
+        y += 9;
     });
 
-    startY += 5;
-    doc.setFont("helvetica", "bold");
-    doc.text(`TOTAL: $${formatoMoneda(total)}`, 145, startY, { align: "left" });
+    /* --- Total --- */
+    if (y + 60 > LIMITE) { doc.addPage(); y = 20; }
+    y += 6;
+    doc.setFillColor(...azul); doc.roundedRect(W - M - 70, y, 70, 13, 2, 2, "F");
+    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.text("TOTAL", W - M - 66, y + 8.2);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("$" + formatoMoneda(total), W - M - 4, y + 9, { align: "right" });
 
-    startY += 30;
-    doc.line(14, startY, 95, startY);
-    doc.line(114, startY, 195, startY);
+    /* --- Firmas --- */
+    y += 40;
+    const lineaY = y + 22;
+    doc.setDrawColor(...gris); doc.line(M, lineaY, 95, lineaY); doc.line(115, lineaY, W - M, lineaY);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...oscuro);
+    doc.text("Entregó", M, lineaY + 5); doc.text("Recibió", 115, lineaY + 5);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...gris);
+    if (atendio) doc.text(atendio, M, lineaY + 10);
+    doc.text(cliente, 115, lineaY + 10);
 
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.text("Entregó", 14, startY + 4);
-    doc.text("Recibió", 114, startY + 4);
-
-    const firmaVendedorBase64 = firmaVendedorGlobalEnMemoria;
-    if (firmaVendedorBase64) {
-        doc.addImage(firmaVendedorBase64, 'PNG', 18, startY - 22, 50, 20);
+    if (firmaVendedorGlobalEnMemoria) {
+        try { doc.addImage(firmaVendedorGlobalEnMemoria, 'PNG', M + 2, lineaY - 20, 50, 19); } catch (e) { console.warn("Firma de entrega no válida", e); }
     }
-
     const canvasFirma = document.getElementById("firmaCanvas");
     if (canvasFirma) {
         const firmaClienteData = canvasFirma.toDataURL("image/png");
         if (firmaClienteData.length > 1500) {
-            doc.addImage(firmaClienteData, 'PNG', 114, startY - 22, 50, 20);
+            try { doc.addImage(firmaClienteData, 'PNG', 117, lineaY - 20, 50, 19); } catch (e) { console.warn("Firma del cliente no válida", e); }
         }
+    }
+
+    /* --- Pie de página --- */
+    const n = doc.getNumberOfPages();
+    for (let p = 1; p <= n; p++) {
+        doc.setPage(p);
+        doc.setDrawColor(226, 232, 240); doc.line(M, H - 14, W - M, H - 14);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(150, 150, 150);
+        doc.text("Gracias por su compra", M, H - 9);
+        doc.text("Remisión " + numeroFormateado + (n > 1 ? "  |  Página " + p + " de " + n : ""), W - M, H - 9, { align: "right" });
     }
 
     return { doc, nombreArchivo, numeroFormateado };
