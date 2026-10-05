@@ -181,119 +181,138 @@ async function irAFacturacion() {
 /* ==========================================
    HISTORIAL DE VENTAS (ACTUALIZADO)
    ========================================== */
-function verHistorial() {
-    const urlAPI = obtenerUrlAPI();
-    if (!urlAPI) {
-        alert("No se encontró la URL de la API.");
+let filtroEstado = "Todos"; // Todos | Pendiente | Pagado
+
+function escHtml(t) { return String(t ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+function historialFiltrado() {
+    return historialAgrupado.filter(r => filtroEstado === "Todos" || (filtroEstado === "Pendiente" ? r.estadoPago === "Pendiente" : r.estadoPago !== "Pendiente"));
+}
+
+function asegurarFiltrosHistorial() {
+    if (document.getElementById("filtrosHistorial")) return;
+    const lista = document.getElementById("listaHistorial");
+    if (!lista) return;
+    const barra = document.createElement("div");
+    barra.id = "filtrosHistorial";
+    barra.style.cssText = "display:flex; gap:8px; margin:0 0 10px 0;";
+    [["Todos", "Todos"], ["Pendiente", "Pendientes"], ["Pagado", "Pagados"]].forEach(([valor, texto]) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.dataset.filtro = valor; b.dataset.texto = texto;
+        b.onclick = () => { filtroEstado = valor; renderHistorial(); };
+        barra.appendChild(b);
+    });
+    const aviso = document.createElement("p");
+    aviso.id = "avisoFiltro";
+    aviso.style.cssText = "font-size:12px; color:#64748b; margin:0 0 12px 0; display:none;";
+    lista.parentNode.insertBefore(barra, lista);
+    lista.parentNode.insertBefore(aviso, lista);
+}
+
+function renderHistorial() {
+    asegurarFiltrosHistorial();
+    const contenedor = document.getElementById("listaHistorial");
+    const spanTotal = document.getElementById("totalDia");
+    if (!contenedor) return;
+
+    const cuenta = { Todos: historialAgrupado.length, Pendiente: historialAgrupado.filter(r => r.estadoPago === "Pendiente").length };
+    cuenta.Pagado = cuenta.Todos - cuenta.Pendiente;
+    document.querySelectorAll("#filtrosHistorial button").forEach(b => {
+        const activo = b.dataset.filtro === filtroEstado;
+        b.textContent = b.dataset.texto + " (" + cuenta[b.dataset.filtro] + ")";
+        b.style.cssText = "flex:1; width:auto; padding:9px 4px; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; border:1px solid " + (activo ? "#2563eb" : "#cbd5e1") + "; background:" + (activo ? "#2563eb" : "white") + "; color:" + (activo ? "white" : "#475569") + ";";
+    });
+    const aviso = document.getElementById("avisoFiltro");
+    if (aviso) { aviso.style.display = filtroEstado === "Pendiente" ? "block" : "none"; aviso.textContent = "Toca la etiqueta «Pendiente» de una remisión para marcarla como pagada."; }
+
+    const lista = historialFiltrado();
+    if (!lista.length) {
+        contenedor.innerHTML = "<p style='text-align:center; color:#666;'>No hay remisiones " + (filtroEstado === "Pendiente" ? "pendientes" : filtroEstado === "Pagado" ? "pagadas" : "en el historial") + ".</p>";
+        if (spanTotal) spanTotal.innerText = "0";
         return;
     }
 
-    // Obtenemos los datos directamente de las variables globales en memoria de la sesión actual
-    // (Asegúrate de que window.usuarioLogueado y window.rolLogueado se asignen al hacer el login exitoso)
-    const empleadoActual = window.usuarioLogueado || "";
-    const rolActual = window.rolLogueado || "";
-    const esJefe = (rolActual.toLowerCase() === "jefe" || empleadoActual.toLowerCase() === "administrador");
-    
-    // Construimos la URL enviando los parámetros GET al Apps Script para que filtre en la base de datos
-    
+    let total = 0, html = "";
+    lista.forEach(rem => {
+        total += rem.totalRemision;
+        const pendiente = rem.estadoPago === "Pendiente";
+        const filas = rem.items.map(i => `
+            <tr>
+                <td style="padding: 4px 0;">${escHtml(i.producto)}</td>
+                <td style="padding: 4px 0;">${i.cantidad}</td>
+                <td style="padding: 4px 0; text-align: right;">$${formatoMoneda(i.subtotal)}</td>
+            </tr>`).join("");
+        const puedeCobrar = pendiente && /^\d+$/.test(String(rem.numRemision));
+        const etiqueta = puedeCobrar
+            ? `<button type="button" onclick="confirmarPago('${rem.numRemision}')" title="Marcar como pagada" style="width:auto; background:#e67e22; color:white; padding:6px 12px; border:none; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;">Pendiente</button>`
+            : `<span style="background:${pendiente ? "#e67e22" : "#27ae60"}; color:white; padding:4px 10px; border-radius:4px; font-size:12px; font-weight:bold;">${escHtml(rem.estadoPago)}</span>`;
+        html += `
+            <div style="background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
+                    <strong style="color: #2563eb; font-size: 16px;">Remisión #${escHtml(rem.numRemision)}</strong>
+                    <span style="font-size: 12px; color: #666;">${escHtml(rem.fecha)}</span>
+                </div>
+                <p style="margin: 4px 0; font-size: 14px;"><strong>Cliente:</strong> ${escHtml(rem.cliente)}</p>
+                <p style="margin: 4px 0; font-size: 14px;"><strong>Empleado:</strong> ${escHtml(rem.empleado)}</p>
+                <div style="margin: 10px 0; background: #f8fafc; padding: 8px; border-radius: 6px;">
+                    <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid #cbd5e1; text-align: left; color: #475569;">
+                                <th style="padding-bottom: 4px;">Producto</th>
+                                <th style="padding-bottom: 4px;">Cant</th>
+                                <th style="padding-bottom: 4px; text-align: right;">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>${filas}</tbody>
+                    </table>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                    ${etiqueta}
+                    <strong style="font-size: 15px; color: #1e293b;">Total: $${formatoMoneda(rem.totalRemision)}</strong>
+                </div>
+            </div>`;
+    });
+    contenedor.innerHTML = html;
+    if (spanTotal) spanTotal.innerText = formatoMoneda(total);
+}
 
+async function confirmarPago(num) {
+    const rem = historialAgrupado.find(r => String(r.numRemision) === String(num));
+    if (!rem || rem.estadoPago !== "Pendiente") return;
+    const ok = confirm("¿Confirmas que la remisión #" + String(num).padStart(4, "0") + " de " + rem.cliente + " por $" + formatoMoneda(rem.totalRemision) + " ya fue pagada?\n\nPasará a estado Pagado.");
+    if (!ok) return;
+    try {
+        const j = await api("marcarpagado", { numRemision: Number(num) }, true);
+        if (!j.success) { alert(j.message || "No se pudo actualizar el estado."); return; }
+        rem.estadoPago = "Pagado";
+        renderHistorial();
+    } catch (e) { alert("Error: " + e.message); }
+}
+
+function verHistorial() {
+    if (!obtenerUrlAPI()) { alert("No se encontró la URL de la API."); return; }
+    asegurarFiltrosHistorial();
     api("obtenerhistorial")
         .then(data => {
-            if (!data.success || !data.historial) {
-                console.warn("No se encontró historial o la respuesta no fue exitosa.");
-                let contenedor = document.getElementById("listaHistorial");
-                if (contenedor) contenedor.innerHTML = "<p style='text-align: center; color: #666;'>No hay registros en el historial.</p>";
-                return;
-            }
-            
-            let historial = data.historial;
-            let contenedor = document.getElementById("listaHistorial");
-            let spanTotalDia = document.getElementById("totalDia");
-            
-            if (!contenedor) return;
-
-            let remisionesAgrupadas = {};
-            let totalGeneralDia = 0;
-
-            historial.forEach(item => {
-                let numRem = item.numRemision;
-                let key = (numRem !== undefined && numRem !== null && String(numRem).trim() !== "") ? String(numRem) : "S/N";
-                
-                if (!remisionesAgrupadas[key]) {
-                    remisionesAgrupadas[key] = {
+            const grupos = {};
+            (data.success && data.historial ? data.historial : []).forEach(item => {
+                const n = item.numRemision;
+                const key = (n !== undefined && n !== null && String(n).trim() !== "") ? String(n) : "S/N";
+                if (!grupos[key]) {
+                    grupos[key] = {
                         numRemision: key,
                         fecha: item.fecha ? new Date(item.fecha).toLocaleString() : "Fecha no disponible",
                         empleado: item.empleado || "Desconocido",
                         cliente: item.cliente || "Mostrador / Genérico",
                         estadoPago: item.estadoPago || "Pendiente",
-                        items: [],
-                        totalRemision: 0
+                        items: [], totalRemision: 0
                     };
                 }
-                
-                remisionesAgrupadas[key].items.push({
-                    producto: item.producto || "Producto",
-                    cantidad: Number(item.cantidad) || 0,
-                    subtotal: Number(item.subtotal) || 0
-                });
-                remisionesAgrupadas[key].totalRemision += Number(item.subtotal) || 0;
+                grupos[key].items.push({ producto: item.producto || "Producto", cantidad: Number(item.cantidad) || 0, subtotal: Number(item.subtotal) || 0 });
+                grupos[key].totalRemision += Number(item.subtotal) || 0;
             });
-
-            let html = "";
-            for (let key in remisionesAgrupadas) {
-                let rem = remisionesAgrupadas[key];
-                totalGeneralDia += rem.totalRemision;
-
-                let badgeColor = rem.estadoPago === "Pagado" ? "#27ae60" : "#e67e22";
-
-                let filasItems = "";
-                rem.items.forEach(i => {
-                    filasItems += `
-                        <tr>
-                            <td style="padding: 4px 0;">${i.producto}</td>
-                            <td style="padding: 4px 0;">${i.cantidad}</td>
-                            <td style="padding: 4px 0; text-align: right;">$${formatoMoneda(i.subtotal)}</td>
-                        </tr>
-                    `;
-                });
-
-                html += `
-                    <div style="background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
-                            <strong style="color: #2563eb; font-size: 16px;">Remisión #${rem.numRemision}</strong>
-                            <span style="font-size: 12px; color: #666;">${rem.fecha}</span>
-                        </div>
-                        <p style="margin: 4px 0; font-size: 14px;"><strong>Cliente:</strong> ${rem.cliente}</p>
-                        <p style="margin: 4px 0; font-size: 14px;"><strong>Empleado:</strong> ${rem.empleado}</p>
-                        
-                        <div style="margin: 10px 0; background: #f8fafc; padding: 8px; border-radius: 6px;">
-                            <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-                                <thead>
-                                    <tr style="border-bottom: 1px solid #cbd5e1; text-align: left; color: #475569;">
-                                        <th style="padding-bottom: 4px;">Producto</th>
-                                        <th style="padding-bottom: 4px;">Cant</th>
-                                        <th style="padding-bottom: 4px; text-align: right;">Subtotal</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${filasItems}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                            <span style="background: ${badgeColor}; color: white; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold;">${rem.estadoPago}</span>
-                            <strong style="font-size: 15px; color: #1e293b;">Total: $${formatoMoneda(rem.totalRemision)}</strong>
-                        </div>
-                    </div>
-                `;
-            }
-
-            historialAgrupado = Object.values(remisionesAgrupadas);
-            contenedor.innerHTML = html;
-            if (spanTotalDia) {
-                spanTotalDia.innerText = formatoMoneda(totalGeneralDia);
-            }
+            historialAgrupado = Object.values(grupos);
+            renderHistorial();
         })
         .catch(err => console.error("Error al cargar el historial:", err));
 }
@@ -502,28 +521,33 @@ function limpiarCanvasLogin() {
 let historialAgrupado = [];
 
 function descargarHistorialPDF() {
-    if (!historialAgrupado.length) { alert("No hay ventas en el historial para exportar."); return; }
+    const base = historialFiltrado();
+    if (!base.length) { alert("No hay remisiones para exportar con este filtro."); return; }
+    const etiquetaFiltro = filtroEstado === "Pendiente" ? "Pendientes" : filtroEstado === "Pagado" ? "Pagadas" : "";
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const W = 210, H = 297, M = 14, LIMITE = H - 18;
     const azul = [41, 128, 185], gris = [100, 116, 139], oscuro = [30, 41, 59];
     const ses = getSesion() || {};
     const pad = n => String(n).padStart(4, "0");
-    const lista = [...historialAgrupado].sort((a, b) => (Number(b.numRemision) || 0) - (Number(a.numRemision) || 0));
+    const lista = [...base].sort((a, b) => (Number(b.numRemision) || 0) - (Number(a.numRemision) || 0));
     const totalGeneral = lista.reduce((t, r) => t + r.totalRemision, 0);
     const totalPend = lista.filter(r => r.estadoPago !== "Pagado").reduce((t, r) => t + r.totalRemision, 0);
 
     // Encabezado
     doc.setFillColor(...azul); doc.rect(0, 0, W, 30, "F");
     doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.text("FORTIZ", M, 14);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.text("Historial de ventas", M, 22);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.text("Historial de ventas" + (etiquetaFiltro ? " - " + etiquetaFiltro : ""), M, 22);
     doc.setFontSize(9);
     doc.text("Generado: " + new Date().toLocaleString("es-CO"), W - M, 14, { align: "right" });
     doc.text(ses.rol === "jefe" ? "Todas las ventas" : "Ventas de " + (ses.empleado || ""), W - M, 22, { align: "right" });
 
     // Resumen
-    const bw = (W - 2 * M - 8) / 3;
-    [["Remisiones", String(lista.length)], ["Total vendido", "$" + formatoMoneda(totalGeneral)], ["Pendiente por cobrar", "$" + formatoMoneda(totalPend)]].forEach((c, i) => {
+    const cajas = filtroEstado === "Todos"
+        ? [["Remisiones", String(lista.length)], ["Total vendido", "$" + formatoMoneda(totalGeneral)], ["Pendiente por cobrar", "$" + formatoMoneda(totalPend)]]
+        : [["Remisiones " + etiquetaFiltro.toLowerCase(), String(lista.length)], [filtroEstado === "Pendiente" ? "Total por cobrar" : "Total cobrado", "$" + formatoMoneda(totalGeneral)]];
+    const bw = (W - 2 * M - 4 * (cajas.length - 1)) / cajas.length;
+    cajas.forEach((c, i) => {
         const x = M + i * (bw + 4);
         doc.setFillColor(241, 245, 249); doc.roundedRect(x, 37, bw, 18, 2, 2, "F");
         doc.setTextColor(...gris); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text(c[0], x + 4, 44);
@@ -572,7 +596,7 @@ function descargarHistorialPDF() {
         doc.text("Página " + i + " de " + n, W / 2, H - 8, { align: "center" });
     }
 
-    const nombre = "Historial_Ventas_" + new Date().toISOString().slice(0, 10) + ".pdf";
+    const nombre = "Historial_Ventas_" + (etiquetaFiltro ? etiquetaFiltro + "_" : "") + new Date().toISOString().slice(0, 10) + ".pdf";
     const file = new File([doc.output("blob")], nombre, { type: "application/pdf" });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
         navigator.share({ title: "Historial de ventas", files: [file] }).catch(e => { if (e.name !== "AbortError") doc.save(nombre); });
@@ -807,4 +831,3 @@ async function compartirPDF() {
     await guardarYCerrar(numeroPDF);
   } finally { enviando = false; }
 }
-
