@@ -270,6 +270,7 @@ function renderHistorial() {
                     ${etiqueta}
                     <strong style="font-size: 15px; color: #1e293b;">Total: $${formatoMoneda(rem.totalRemision)}</strong>
                 </div>
+                ${(!pendiente && rem.fechaPago) ? `<p style="margin:8px 0 0 0; font-size:12px; color:#16a34a;">✔ Pagado el ${escHtml(rem.fechaPago)}${rem.cobradoPor ? " · registrado por " + escHtml(rem.cobradoPor) : ""}</p>` : ""}
             </div>`;
     });
     contenedor.innerHTML = html;
@@ -285,6 +286,8 @@ async function confirmarPago(num) {
         const j = await api("marcarpagado", { numRemision: Number(num) }, true);
         if (!j.success) { alert(j.message || "No se pudo actualizar el estado."); return; }
         rem.estadoPago = "Pagado";
+        rem.fechaPago = new Date().toLocaleString();
+        rem.cobradoPor = (getSesion() || {}).empleado || "";
         renderHistorial();
     } catch (e) { alert("Error: " + e.message); }
 }
@@ -305,6 +308,8 @@ function verHistorial() {
                         empleado: item.empleado || "Desconocido",
                         cliente: item.cliente || "Mostrador / Genérico",
                         estadoPago: item.estadoPago || "Pendiente",
+                        fechaPago: item.fechaPago ? new Date(item.fechaPago).toLocaleString() : "",
+                        cobradoPor: item.cobradoPor || "",
                         items: [], totalRemision: 0
                     };
                 }
@@ -586,6 +591,7 @@ function descargarHistorialPDF() {
         doc.setFillColor(...(pagado ? [39, 174, 96] : [230, 126, 34])); doc.roundedRect(M + 3, y, 24, 6.5, 1.2, 1.2, "F");
         doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.text(String(r.estadoPago), M + 15, y + 4.5, { align: "center" });
         doc.setTextColor(...oscuro); doc.setFontSize(10); doc.text("Total: $" + formatoMoneda(r.totalRemision), W - M - 3, y + 4.8, { align: "right" });
+        if (pagado && r.fechaPago) { doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...gris); doc.text("Cobrado el " + r.fechaPago + (r.cobradoPor ? " - registrado por " + r.cobradoPor : ""), M + 3, y + 11.5); }
         y += 16;
     });
 
@@ -831,6 +837,8 @@ async function compartirPDF() {
     await guardarYCerrar(numeroPDF);
   } finally { enviando = false; }
 }
+
+
 
 
 
