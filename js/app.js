@@ -831,3 +831,6 @@ async function compartirPDF() {
     await guardarYCerrar(numeroPDF);
   } finally { enviando = false; }
 }
+
+
+
