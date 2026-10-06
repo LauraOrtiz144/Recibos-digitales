@@ -25,8 +25,7 @@ function formatoMoneda(valor) {
 
 /* ==========================================
    MÓDULO DE ACTIVACIÓN Y LOGIN
-   =====================*/
-
+   ================================---------- */
 
 
 
@@ -182,12 +181,23 @@ async function irAFacturacion() {
 /* ==========================================
    HISTORIAL DE VENTAS (ACTUALIZADO)
    ========================================== */
+function claveMes(f) { const d = new Date(f); if (isNaN(d)) return "sin-fecha"; return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
+function etiquetaMes(clave) {
+    if (clave === "todos") return "Todos los meses";
+    if (clave === "sin-fecha") return "Sin fecha";
+    const [y, m] = clave.split("-");
+    const t = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("es-CO", { month: "long", year: "numeric" });
+    return t.charAt(0).toUpperCase() + t.slice(1);
+}
 let filtroEstado = "Todos"; // Todos | Pendiente | Pagado
+let filtroMes = claveMes(new Date()); // por defecto: el mes actual
 
 function escHtml(t) { return String(t ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 
+function historialPorMes() { return historialAgrupado.filter(r => filtroMes === "todos" || r.mes === filtroMes); }
+
 function historialFiltrado() {
-    return historialAgrupado.filter(r => filtroEstado === "Todos" || (filtroEstado === "Pendiente" ? r.estadoPago === "Pendiente" : r.estadoPago !== "Pendiente"));
+    return historialPorMes().filter(r => filtroEstado === "Todos" || (filtroEstado === "Pendiente" ? r.estadoPago === "Pendiente" : r.estadoPago !== "Pendiente"));
 }
 
 function asegurarFiltrosHistorial() {
@@ -206,6 +216,11 @@ function asegurarFiltrosHistorial() {
     const aviso = document.createElement("p");
     aviso.id = "avisoFiltro";
     aviso.style.cssText = "font-size:12px; color:#64748b; margin:0 0 12px 0; display:none;";
+    const sel = document.createElement("select");
+    sel.id = "filtroMes";
+    sel.style.cssText = "width:100%; padding:10px; margin:0 0 10px 0; border:1px solid #cbd5e1; border-radius:6px; font-size:14px; background:white; color:#1e293b;";
+    sel.onchange = () => { filtroMes = sel.value; renderHistorial(); };
+    lista.parentNode.insertBefore(sel, lista);
     lista.parentNode.insertBefore(barra, lista);
     lista.parentNode.insertBefore(aviso, lista);
 }
@@ -216,7 +231,15 @@ function renderHistorial() {
     const spanTotal = document.getElementById("totalDia");
     if (!contenedor) return;
 
-    const cuenta = { Todos: historialAgrupado.length, Pendiente: historialAgrupado.filter(r => r.estadoPago === "Pendiente").length };
+    const sel = document.getElementById("filtroMes");
+    if (sel) {
+        const hoy = claveMes(new Date());
+        const meses = [...new Set([hoy, ...historialAgrupado.map(x => x.mes)])].filter(m => m !== "sin-fecha").sort().reverse();
+        sel.innerHTML = meses.map(m => `<option value="${m}">${etiquetaMes(m)}${m === hoy ? " (este mes)" : ""}</option>`).join("") + `<option value="todos">Todos los meses</option>`;
+        sel.value = filtroMes;
+    }
+    const delMes = historialPorMes();
+    const cuenta = { Todos: delMes.length, Pendiente: delMes.filter(x => x.estadoPago === "Pendiente").length };
     cuenta.Pagado = cuenta.Todos - cuenta.Pendiente;
     document.querySelectorAll("#filtrosHistorial button").forEach(b => {
         const activo = b.dataset.filtro === filtroEstado;
@@ -224,11 +247,18 @@ function renderHistorial() {
         b.style.cssText = "flex:1; width:auto; padding:9px 4px; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; border:1px solid " + (activo ? "#2563eb" : "#cbd5e1") + "; background:" + (activo ? "#2563eb" : "white") + "; color:" + (activo ? "white" : "#475569") + ";";
     });
     const aviso = document.getElementById("avisoFiltro");
-    if (aviso) { aviso.style.display = filtroEstado === "Pendiente" ? "block" : "none"; aviso.textContent = "Toca la etiqueta «Pendiente» de una remisión para marcarla como pagada."; }
+    if (aviso) {
+        const otros = filtroMes === "todos" ? [] : historialAgrupado.filter(x => x.mes !== filtroMes && x.estadoPago === "Pendiente");
+        const partes = [];
+        if (filtroEstado === "Pendiente") partes.push("Toca la etiqueta «Pendiente» de una remisión para marcarla como pagada.");
+        if (otros.length) partes.push("⚠ Hay " + otros.length + " remisión(es) pendiente(s) en otros meses ($" + formatoMoneda(otros.reduce((t, x) => t + x.totalRemision, 0)) + "). Elige «Todos los meses» para verlas.");
+        aviso.textContent = partes.join(" ");
+        aviso.style.display = partes.length ? "block" : "none";
+    }
 
     const lista = historialFiltrado();
     if (!lista.length) {
-        contenedor.innerHTML = "<p style='text-align:center; color:#666;'>No hay remisiones " + (filtroEstado === "Pendiente" ? "pendientes" : filtroEstado === "Pagado" ? "pagadas" : "en el historial") + ".</p>";
+        contenedor.innerHTML = "<p style='text-align:center; color:#666;'>No hay remisiones " + (filtroEstado === "Pendiente" ? "pendientes" : filtroEstado === "Pagado" ? "pagadas" : "en el historial") + (filtroMes === "todos" ? "" : " (" + etiquetaMes(filtroMes) + ")") + ".</p>";
         if (spanTotal) spanTotal.innerText = "0";
         return;
     }
@@ -309,6 +339,7 @@ function verHistorial() {
                         empleado: item.empleado || "Desconocido",
                         cliente: item.cliente || "Mostrador / Genérico",
                         estadoPago: item.estadoPago || "Pendiente",
+                        mes: claveMes(item.fecha),
                         fechaPago: item.fechaPago ? new Date(item.fechaPago).toLocaleString() : "",
                         cobradoPor: item.cobradoPor || "",
                         items: [], totalRemision: 0
@@ -543,7 +574,7 @@ function descargarHistorialPDF() {
     // Encabezado
     doc.setFillColor(...azul); doc.rect(0, 0, W, 30, "F");
     doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.text("FORTIZ", M, 14);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.text("Historial de ventas" + (etiquetaFiltro ? " - " + etiquetaFiltro : ""), M, 22);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.text("Historial de ventas - " + etiquetaMes(filtroMes) + (etiquetaFiltro ? " - " + etiquetaFiltro : ""), M, 22);
     doc.setFontSize(9);
     doc.text("Generado: " + new Date().toLocaleString("es-CO"), W - M, 14, { align: "right" });
     doc.text(ses.rol === "jefe" ? "Todas las ventas" : "Ventas de " + (ses.empleado || ""), W - M, 22, { align: "right" });
@@ -603,7 +634,7 @@ function descargarHistorialPDF() {
         doc.text("Página " + i + " de " + n, W / 2, H - 8, { align: "center" });
     }
 
-    const nombre = "Historial_Ventas_" + (etiquetaFiltro ? etiquetaFiltro + "_" : "") + new Date().toISOString().slice(0, 10) + ".pdf";
+    const nombre = "Historial_Ventas_" + (filtroMes !== "todos" ? filtroMes + "_" : "") + (etiquetaFiltro ? etiquetaFiltro + "_" : "") + new Date().toISOString().slice(0, 10) + ".pdf";
     const file = new File([doc.output("blob")], nombre, { type: "application/pdf" });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
         navigator.share({ title: "Historial de ventas", files: [file] }).catch(e => { if (e.name !== "AbortError") doc.save(nombre); });
@@ -838,9 +869,4 @@ async function compartirPDF() {
     await guardarYCerrar(numeroPDF);
   } finally { enviando = false; }
 }
-
-
-
-
-
 
