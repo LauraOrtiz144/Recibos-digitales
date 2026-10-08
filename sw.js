@@ -1,4 +1,4 @@
-const CACHE = 'remisiones-v4';
+const CACHE = 'remisiones-v5';
 const LOCALES = ['./', './index.html', './css/style.css', './js/app.js', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/FORTIZ.jpeg'];
 const EXTERNOS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
@@ -6,9 +6,18 @@ const EXTERNOS = [
 ];
 const HOSTS_EXTERNOS = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
+// Safari rechaza una página servida por el Service Worker si la respuesta guardada viene de una redirección
+// (por ejemplo /index.html -> /). Se guardan copias limpias, sin ese marcador.
+async function limpia(r) {
+  if (!r || !r.redirected) return r;
+  const b = await r.blob();
+  return new Response(b, { status: r.status, statusText: r.statusText, headers: r.headers });
+}
+async function guardar(c, req, r) { try { await c.put(req, await limpia(r)); } catch (e) {} }
+
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all([
-    ...LOCALES.map(a => c.add(a).catch(() => {})),
+    ...LOCALES.map(a => fetch(new Request(a, { cache: 'reload' })).then(r => (r.ok ? guardar(c, a, r) : null)).catch(() => {})),
     ...EXTERNOS.map(u => fetch(u, { mode: 'no-cors' }).then(r => c.put(u, r)).catch(() => {}))
   ])));
   self.skipWaiting();
@@ -35,8 +44,8 @@ self.addEventListener('fetch', e => {
   if (u.origin === location.origin) {
     e.respondWith(
       conTiempo(fetch(req, { cache: 'no-cache' }), 4000)
-        .then(r => { if (r.ok) { const c = r.clone(); caches.open(CACHE).then(x => x.put(req, c)); } return r; })
-        .catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || (req.mode === 'navigate' ? caches.match('./index.html') : Response.error())))
+        .then(r => { if (r.ok) { const c = r.clone(); caches.open(CACHE).then(x => guardar(x, req, c)); } return r; })
+        .catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || (req.mode === 'navigate' ? caches.match('./index.html') : Response.error())).then(limpia))
     );
     return;
   }
@@ -48,3 +57,4 @@ self.addEventListener('fetch', e => {
     );
   }
 });
+
