@@ -273,7 +273,7 @@ function renderHistorial() {
                 <td style="padding: 4px 0;">${i.cantidad}</td>
                 <td style="padding: 4px 0; text-align: right;">$${formatoMoneda(i.subtotal)}</td>
             </tr>`).join("");
-        const puedeCobrar = pendiente && /^\d+$/.test(String(rem.numRemision));
+        const puedeCobrar = pendiente && /^([A-Z]+-)?\d+$/.test(String(rem.numRemision));
         const etiqueta = puedeCobrar
             ? `<button type="button" onclick="confirmarPago('${rem.numRemision}')" title="Marcar como pagada" style="width:auto; background:#e67e22; color:white; padding:6px 12px; border:none; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;">Pendiente</button>`
             : `<span style="background:${pendiente ? "#e67e22" : "#27ae60"}; color:white; padding:4px 10px; border-radius:4px; font-size:12px; font-weight:bold;">${escHtml(rem.estadoPago)}</span>`;
@@ -315,7 +315,7 @@ async function confirmarPago(num) {
     const ok = confirm("¿Confirmas que la remisión #" + String(num).padStart(4, "0") + " de " + rem.cliente + " por $" + formatoMoneda(rem.totalRemision) + " ya fue pagada?\n\nPasará a estado Pagado.");
     if (!ok) return;
     try {
-        const j = await api("marcarpagado", { numRemision: Number(num) }, true);
+        const j = await api("marcarpagado", { numRemision: String(num) }, true);
         if (!j.success) { alert(j.message || "No se pudo actualizar el estado."); return; }
         rem.estadoPago = "Pagado";
         rem.fechaPago = new Date().toLocaleString();
@@ -337,6 +337,7 @@ function agruparHistorial(lista) {
                 cliente: item.cliente || "Mostrador / Genérico",
                 estadoPago: item.estadoPago || "Pendiente",
                 mes: claveMes(item.fecha),
+                ts: new Date(item.fecha).getTime() || 0,
                 fechaPago: item.fechaPago ? new Date(item.fechaPago).toLocaleString() : "",
                 cobradoPor: item.cobradoPor || "",
                 items: [], totalRemision: 0
@@ -378,7 +379,7 @@ function prepararDocumentoPDF() {
     const direccion = valor("clienteDireccion");
     const pagado = (valor("selectEstadoPago") || "Pagado") !== "Pendiente";
     const atendio = (getSesion() || {}).empleado || "";
-    const numeroFormateado = String(numeroRemision).padStart(4, '0');
+    const numeroFormateado = numeroRemisionTexto;
     const nombreArchivo = `Remision_${cliente}_${numeroFormateado}.pdf`;
 
     const { jsPDF } = window.jspdf;
@@ -582,7 +583,7 @@ function descargarHistorialPDF() {
     const azul = [41, 128, 185], gris = [100, 116, 139], oscuro = [30, 41, 59];
     const ses = getSesion() || {};
     const pad = n => String(n).padStart(4, "0");
-    const lista = [...base].sort((a, b) => (Number(b.numRemision) || 0) - (Number(a.numRemision) || 0));
+    const lista = [...base].sort((a, b) => (b.ts || 0) - (a.ts || 0));
     const totalGeneral = lista.reduce((t, r) => t + r.totalRemision, 0);
     const totalPend = lista.filter(r => r.estadoPago !== "Pagado").reduce((t, r) => t + r.totalRemision, 0);
 
@@ -713,7 +714,8 @@ async function api(accion, datos = {}, post = false) {
   const url = obtenerUrlAPI();
   if (!url) throw new Error("Sistema no activado");
   const s = getSesion();
-  const p = { accion, token: s ? s.token : "", ...datos };
+  const { _silencioso, ...resto } = datos;
+  const p = { accion, token: s ? s.token : "", ...resto };
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), post ? 60000 : 15000); // con señal mala no se queda colgada
   try {
@@ -721,7 +723,7 @@ async function api(accion, datos = {}, post = false) {
       ? await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(p), redirect: "follow", signal: ctrl.signal })
       : await fetch(url + "?" + new URLSearchParams(p), { redirect: "follow", signal: ctrl.signal });
     const j = await r.json();
-    if (j.expirada) { cerrarSesion(); throw new Error("Tu sesión expiró, inicia de nuevo."); }
+    if (j.expirada) { if (!_silencioso) cerrarSesion(true); throw new Error("Tu sesión expiró, inicia de nuevo."); }
     ultimaSyncTs = Date.now(); idbGuardar("ultimaSync", ultimaSyncTs);
     return j;
   } finally { clearTimeout(t); }
@@ -768,13 +770,14 @@ async function login() {
       if (j.requiereFirma && sec) { sec.style.display = "block"; if (!window._canvasLoginListo) { inicializarCanvasLogin(); window._canvasLoginListo = true; } }
       alert(j.message || "PIN incorrecto."); return;
     }
-    localStorage.setItem("sesion", JSON.stringify({ token: j.token, rol: j.rol, empleado: j.empleado }));
+    localStorage.setItem("sesion", JSON.stringify({ token: j.token, rol: j.rol, empleado: j.empleado, serie: j.serie || "" }));
     document.getElementById("pin").value = "";
     iniciarEntornoTrabajo();
   } catch (e) { alert("Error: " + e.message); }
 }
 
-function cerrarSesion() {
+function cerrarSesion(forzado) {
+  if (!forzado && pendientesCola > 0 && !confirm("Tienes " + pendientesCola + " remisión(es) sin enviar. No se pierden, pero no se enviarán hasta que vuelvas a iniciar sesión con internet.\n\n¿Cerrar sesión de todos modos?")) return;
   idbBorrar("historial:" + String((getSesion() || {}).empleado || "").trim().toLowerCase()); // la copia del historial es de ese usuario
   localStorage.removeItem("sesion");
   productos = []; factura = []; firmaVendedorGlobalEnMemoria = "";
@@ -788,6 +791,7 @@ function iniciarEntornoTrabajo() {
   window.rolLogueado = s ? s.rol : "";
   mostrarVista("catalogoVista");
   cargarInventarioDesdeNube();
+  asegurarSerie(); contarCola(); sincronizar();
 }
 
 async function cargarInventarioDesdeNube() {
@@ -795,7 +799,7 @@ async function cargarInventarioDesdeNube() {
     if (!navigator.onLine) throw new Error("sin red");
     const j = await api("obtenerinventario");
     if (j.success) {
-      productos = j.productos; usandoCopiaLocal = false;
+      productos = await aplicarColaAlStock(j.productos); usandoCopiaLocal = false;
       idbGuardar("catalogo", { productos, ts: Date.now() });
       mostrarCatalogo(); actualizarBanner(); return;
     }
@@ -808,11 +812,23 @@ async function cargarInventarioDesdeNube() {
   actualizarBanner();
 }
 
-async function actualizarNumeroRemisionDesdeNube() {
+async function actualizarNumeroRemisionDesdeNube() { // local: serie del celular + contador, funciona sin internet
+  await asegurarSerie();
+  const serie = (getSesion() || {}).serie;
+  const el = document.getElementById("numeroRemision");
+  if (!serie) { numeroRemisionTexto = ""; if (el) el.innerText = "Sin serie (conéctate)"; return; }
+  numeroRemision = ((await idbLeer("contador:" + serie)) || 0) + 1;
+  numeroRemisionTexto = serie + "-" + String(numeroRemision).padStart(4, "0");
+  if (el) el.innerText = numeroRemisionTexto;
+}
+
+async function asegurarSerie() {
+  const s = getSesion();
+  if (!s || s.serie || !navigator.onLine) return;
   try {
-    const j = await api("obtenersiguienteremision");
-    if (j.success) { numeroRemision = j.siguiente; document.getElementById("numeroRemision").innerText = j.siguienteFormateado; }
-  } catch (e) { console.error(e); }
+    const j = await api("obtenerserie", { dispositivoId: obtenerDeviceId() });
+    if (j.success && j.serie) { s.serie = j.serie; localStorage.setItem("sesion", JSON.stringify(s)); }
+  } catch (e) { console.warn("No se pudo obtener la serie", e); }
 }
 
 function verificarSiRequiereFirmaLogin() {
@@ -849,46 +865,103 @@ function configurarBuscador() {
   });
 }
 
-/* ===== ENVIAR REMISIÓN: primero se comparte el PDF; solo si se compartió, se guarda en la base y se descuenta el inventario ===== */
-let enviando = false, pendienteGuardar = false;
+/* ===== ENVIAR REMISIÓN: se comparte el PDF y la remisión queda en una cola local que se sube sola a la hoja ===== */
+let enviando = false, sincronizando = false, pendientesCola = 0, ultimoErrorSync = "";
+let numeroRemisionTexto = "";
+let colaPromesa = Promise.resolve();
+function colaOp(fn) { colaPromesa = colaPromesa.then(fn, fn); return colaPromesa; }
+function nuevoUuid() { return crypto.randomUUID ? crypto.randomUUID() : "id-" + Date.now() + "-" + Math.random().toString(16).slice(2); }
 
-async function guardarYCerrar(numeroPDF) {
-  const cv = document.getElementById("firmaCanvas");
-  const v = id => (document.getElementById(id)?.value || "").trim();
+async function contarCola() { pendientesCola = ((await idbLeer("cola")) || []).length; actualizarBanner(); }
+
+async function encolarRemision(rem, n, serie) {
+  await colaOp(async () => {
+    const c = (await idbLeer("cola")) || [];
+    c.push(rem);
+    await idbGuardar("cola", c, true);
+    await idbGuardar("contador:" + serie, n, true);
+  });
+  await contarCola();
+}
+
+async function aplicarColaAlStock(lista) {
+  const cola = (await idbLeer("cola")) || [];
+  cola.forEach(r => r.items.forEach(it => {
+    const p = lista.find(x => x.codigo_interno === it.codigo_interno);
+    if (p) p.cantidad_actual = Math.max(0, (Number(p.cantidad_actual) || 0) - it.cantidad);
+  }));
+  return lista;
+}
+
+function descontarStockLocal(items) {
+  items.forEach(it => {
+    const p = productos.find(x => x.codigo_interno === it.codigo_interno);
+    if (p) p.cantidad_actual = Math.max(0, (Number(p.cantidad_actual) || 0) - it.cantidad);
+  });
+  idbGuardar("catalogo", { productos, ts: Date.now() });
+  mostrarCatalogo();
+}
+
+function esMia(r) {
+  const s = getSesion() || {};
+  return s.rol === "jefe" || String(r.empleado).trim().toLowerCase() === String(s.empleado || "").trim().toLowerCase();
+}
+
+async function sincronizar() {
+  if (sincronizando || !navigator.onLine || !getSesion()) return;
+  sincronizando = true; ultimoErrorSync = ""; actualizarBanner();
+  let enviadas = 0;
   try {
-    const j = await api("registrarremisionmasiva", {
-      items: factura.map(i => ({ codigo_interno: i.codigo_interno, cantidad: i.cantidad })),
-      cliente: v("clienteNombre"), estadoPago: v("selectEstadoPago") || "Pagado", firma: cv.toDataURL("image/png")
-    }, true);
-    if (!j.success) {
-      pendienteGuardar = true;
-      alert("El PDF ya se envió, pero NO se pudo guardar: " + (j.message || "error") + "\nPulsa Enviar otra vez para reintentar solo el guardado (no se reenvía el PDF).");
-      return;
+    for (let vuelta = 0; vuelta < 50; vuelta++) {
+      const mias = ((await idbLeer("cola")) || []).filter(r => esMia(r) && !r.error);
+      if (!mias.length) break;
+      const j = await api("sincronizarremisiones", { remisiones: mias.slice(0, 5), _silencioso: true }, true);
+      if (!j.success) { ultimoErrorSync = j.message || "error del servidor"; break; }
+      const ok = new Set(), fallos = {};
+      (j.resultados || []).forEach(x => { if (x.ok) ok.add(x.uuid); else fallos[x.uuid] = x.message || "rechazada"; });
+      // solo se borra de la cola lo que el servidor confirmó (guardada o ya existente)
+      await colaOp(async () => {
+        const c = (await idbLeer("cola")) || [];
+        await idbGuardar("cola", c.filter(r => !ok.has(r.uuid)).map(r => fallos[r.uuid] ? { ...r, error: fallos[r.uuid] } : r), true);
+      });
+      enviadas += ok.size;
+      if (!ok.size) { ultimoErrorSync = Object.values(fallos)[0] || "no se pudo enviar"; break; }
     }
-    pendienteGuardar = false;
-    if (j.numRemision !== numeroPDF) alert("Atención: el PDF salió con el No. " + String(numeroPDF).padStart(4, "0") + " pero quedó guardada como No. " + String(j.numRemision).padStart(4, "0") + " porque otro usuario guardó antes. Avisa al cliente.");
-    factura = []; actualizarFactura();
-    ["clienteNombre", "clienteTelefono", "clienteDireccion"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
-    limpiarFirma();
-    cargarInventarioDesdeNube();
-    mostrarVista("historialVista");
   } catch (e) {
-    pendienteGuardar = true;
-    alert("El PDF ya se envió, pero no se pudo guardar (" + e.message + "). Pulsa Enviar otra vez para reintentar el guardado.");
+    ultimoErrorSync = String(e.message).includes("expir") ? "sesión vencida: inicia sesión con internet para enviarlas" : "señal inestable, se reintentará";
+  } finally {
+    sincronizando = false;
+    await contarCola();
+  }
+  if (enviadas) {
+    cargarInventarioDesdeNube();
+    const hv = document.getElementById("historialVista");
+    if (hv && hv.style.display === "block") verHistorial();
   }
 }
 
 async function compartirPDF() {
   if (enviando) return;
-  if (!navigator.onLine) { alert("Sin conexión: no se puede enviar la remisión ahora. Conéctate e inténtalo de nuevo."); return; }
   if (!factura.length) { alert("No hay productos en la remisión."); return; }
+  const ses = getSesion() || {};
+  if (!ses.serie || !numeroRemisionTexto) {
+    alert("Este celular aún no tiene su serie de remisiones. Conéctate a internet una vez e inténtalo de nuevo.");
+    asegurarSerie().then(actualizarNumeroRemisionDesdeNube);
+    return;
+  }
+  const cv = document.getElementById("firmaCanvas");
+  if (!cv || cv.toDataURL("image/png").length < 1500) { alert("Falta la firma del cliente."); return; }
+  const v = id => (document.getElementById(id)?.value || "").trim();
+  const rem = {
+    uuid: nuevoUuid(), numero: numeroRemisionTexto, fecha: new Date().toISOString(), empleado: ses.empleado,
+    cliente: v("clienteNombre") || "Mostrador / Genérico", estadoPago: v("selectEstadoPago") || "Pagado",
+    firma: cv.toDataURL("image/png"),
+    items: factura.map(i => ({ codigo_interno: i.codigo_interno, nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
+  };
+  const n = numeroRemision;
   enviando = true;
-  const numeroPDF = numeroRemision;
   try {
-    if (pendienteGuardar) { await guardarYCerrar(numeroPDF); return; }
-    const cv = document.getElementById("firmaCanvas");
-    if (!cv || cv.toDataURL("image/png").length < 1500) { alert("Falta la firma del cliente."); return; }
-    // Se comparte de inmediato, dentro del toque del usuario (si se espera a la red antes, el celular bloquea el compartir)
+    // El PDF se comparte de inmediato (dentro del toque del usuario), con o sin internet.
     const { doc, nombreArchivo, numeroFormateado } = prepararDocumentoPDF();
     const file = new File([doc.output("blob")], nombreArchivo, { type: "application/pdf" });
     let enviado = false;
@@ -904,10 +977,19 @@ async function compartirPDF() {
       if (e.name !== "AbortError") alert("No se pudo compartir el PDF: " + e.message);
     }
     if (!enviado) { alert("Envío cancelado: la remisión NO se guardó y el inventario no cambió."); return; }
-    await guardarYCerrar(numeroPDF);
+
+    try { await encolarRemision(rem, n, ses.serie); }
+    catch (e) { alert("⚠ El PDF se envió, pero la remisión NO se pudo guardar en este celular (" + e.message + "). Anótala: No. " + rem.numero); return; }
+
+    descontarStockLocal(rem.items);
+    factura = []; actualizarFactura();
+    ["clienteNombre", "clienteTelefono", "clienteDireccion"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+    limpiarFirma();
+    await actualizarNumeroRemisionDesdeNube();
+    mostrarVista("historialVista");
+    sincronizar();
   } finally { enviando = false; }
 }
-
 
 /* ===== MODO SIN CONEXIÓN (etapa 1): copias locales en IndexedDB + indicador ===== */
 const IDB_NOMBRE = "remisiones_local", IDB_STORE = "kv";
@@ -921,11 +1003,11 @@ function idbAbrir() {
     r.onerror = () => err(r.error);
   });
 }
-async function idbGuardar(clave, valor) {
+async function idbGuardar(clave, valor, estricto = false) {
   try {
     const db = await idbAbrir();
     await new Promise((ok, err) => { const t = db.transaction(IDB_STORE, "readwrite"); t.objectStore(IDB_STORE).put(valor, clave); t.oncomplete = ok; t.onerror = () => err(t.error); });
-  } catch (e) { console.warn("IndexedDB no disponible", e); }
+  } catch (e) { if (estricto) throw e; console.warn("IndexedDB no disponible", e); }
 }
 async function idbLeer(clave) {
   try {
@@ -954,21 +1036,29 @@ function actualizarBanner() {
   if (!b) {
     b = document.createElement("div");
     b.id = "estadoConexion";
-    b.style.cssText = "position:fixed; top:0; left:0; right:0; z-index:9999; padding:6px 10px; font-size:12px; font-weight:bold; text-align:center; background:#e67e22; color:white; display:none;";
+    b.style.cssText = "position:fixed; top:0; left:0; right:0; z-index:9999; padding:6px 10px; font-size:12px; font-weight:bold; text-align:center; color:white; display:none; cursor:pointer;";
+    b.onclick = () => sincronizar();
     document.body.appendChild(b);
   }
   const sinRed = !navigator.onLine || usandoCopiaLocal;
-  b.style.display = sinRed ? "block" : "none";
-  document.body.style.paddingTop = sinRed ? "28px" : "";
-  if (sinRed) b.textContent = "Sin conexión" + (ultimaSyncTs ? " · última conexión " + haceCuanto(ultimaSyncTs) : "") + " · mostrando datos guardados";
+  const mostrar = sinRed || pendientesCola > 0;
+  b.style.display = mostrar ? "block" : "none";
+  b.style.background = sinRed ? "#e67e22" : "#2563eb";
+  document.body.style.paddingTop = mostrar ? "28px" : "";
+  const partes = [];
+  if (sinRed) partes.push("Sin conexión" + (ultimaSyncTs ? " · última conexión " + haceCuanto(ultimaSyncTs) : ""));
+  if (pendientesCola > 0) partes.push(pendientesCola + " remisión(es) por enviar" + (sincronizando ? " · enviando…" : sinRed ? "" : " · toca para enviar") + (ultimoErrorSync ? " (" + ultimoErrorSync + ")" : ""));
+  else if (sinRed) partes.push("mostrando datos guardados");
+  b.textContent = partes.join(" · ");
 }
 
-window.addEventListener("online", () => { usandoCopiaLocal = false; actualizarBanner(); if (getSesion()) cargarInventarioDesdeNube(); });
+window.addEventListener("online", () => { usandoCopiaLocal = false; actualizarBanner(); if (getSesion()) { cargarInventarioDesdeNube(); setTimeout(sincronizar, Math.random() * 3000); } });
 window.addEventListener("offline", actualizarBanner);
 window.addEventListener("DOMContentLoaded", async () => {
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); // pide que el celular no borre estos datos
   ultimaSyncTs = (await idbLeer("ultimaSync")) || 0;
-  actualizarBanner();
+  await contarCola();
+  setInterval(() => { if (pendientesCola > 0) sincronizar(); }, 60000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && pendientesCola > 0) sincronizar(); });
 });
-
 
