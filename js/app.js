@@ -23,6 +23,13 @@ function formatoMoneda(valor) {
    ================================---------- */
 
 
+/* ==========================================
+   MÓDULO DE ACTIVACIÓN Y LOGIN
+   ================================---------- */
+
+
+
+
 
 /* ==========================================
    GESTIÓN DE VISTAS
@@ -302,6 +309,7 @@ function renderHistorial() {
 }
 
 async function confirmarPago(num) {
+    if (!navigator.onLine) { alert("Necesitas internet para marcar una remisión como pagada."); return; }
     const rem = historialAgrupado.find(r => String(r.numRemision) === String(num));
     if (!rem || rem.estadoPago !== "Pendiente") return;
     const ok = confirm("¿Confirmas que la remisión #" + String(num).padStart(4, "0") + " de " + rem.cliente + " por $" + formatoMoneda(rem.totalRemision) + " ya fue pagada?\n\nPasará a estado Pagado.");
@@ -316,35 +324,49 @@ async function confirmarPago(num) {
     } catch (e) { alert("Error: " + e.message); }
 }
 
+function agruparHistorial(lista) {
+    const grupos = {};
+    lista.forEach(item => {
+        const n = item.numRemision;
+        const key = (n !== undefined && n !== null && String(n).trim() !== "") ? String(n) : "S/N";
+        if (!grupos[key]) {
+            grupos[key] = {
+                numRemision: key,
+                fecha: item.fecha ? new Date(item.fecha).toLocaleString() : "Fecha no disponible",
+                empleado: item.empleado || "Desconocido",
+                cliente: item.cliente || "Mostrador / Genérico",
+                estadoPago: item.estadoPago || "Pendiente",
+                mes: claveMes(item.fecha),
+                fechaPago: item.fechaPago ? new Date(item.fechaPago).toLocaleString() : "",
+                cobradoPor: item.cobradoPor || "",
+                items: [], totalRemision: 0
+            };
+        }
+        grupos[key].items.push({ producto: item.producto || "Producto", cantidad: Number(item.cantidad) || 0, subtotal: Number(item.subtotal) || 0 });
+        grupos[key].totalRemision += Number(item.subtotal) || 0;
+    });
+    return Object.values(grupos);
+}
+
 function verHistorial() {
     if (!obtenerUrlAPI()) { alert("No se encontró la URL de la API."); return; }
     asegurarFiltrosHistorial();
+    const clave = "historial:" + String((getSesion() || {}).empleado || "").trim().toLowerCase();
+    const usarCopia = async () => {
+        const c = await idbLeer(clave);
+        if (c && c.lista) { historialAgrupado = agruparHistorial(c.lista); usandoCopiaLocal = true; renderHistorial(); }
+        actualizarBanner();
+    };
+    if (!navigator.onLine) { usarCopia(); return; }
     api("obtenerhistorial")
         .then(data => {
-            const grupos = {};
-            (data.success && data.historial ? data.historial : []).forEach(item => {
-                const n = item.numRemision;
-                const key = (n !== undefined && n !== null && String(n).trim() !== "") ? String(n) : "S/N";
-                if (!grupos[key]) {
-                    grupos[key] = {
-                        numRemision: key,
-                        fecha: item.fecha ? new Date(item.fecha).toLocaleString() : "Fecha no disponible",
-                        empleado: item.empleado || "Desconocido",
-                        cliente: item.cliente || "Mostrador / Genérico",
-                        estadoPago: item.estadoPago || "Pendiente",
-                        mes: claveMes(item.fecha),
-                        fechaPago: item.fechaPago ? new Date(item.fechaPago).toLocaleString() : "",
-                        cobradoPor: item.cobradoPor || "",
-                        items: [], totalRemision: 0
-                    };
-                }
-                grupos[key].items.push({ producto: item.producto || "Producto", cantidad: Number(item.cantidad) || 0, subtotal: Number(item.subtotal) || 0 });
-                grupos[key].totalRemision += Number(item.subtotal) || 0;
-            });
-            historialAgrupado = Object.values(grupos);
+            const lista = data.success && data.historial ? data.historial : [];
+            idbGuardar(clave, { lista, ts: Date.now() });
+            usandoCopiaLocal = false; actualizarBanner();
+            historialAgrupado = agruparHistorial(lista);
             renderHistorial();
         })
-        .catch(err => console.error("Error al cargar el historial:", err));
+        .catch(err => { console.error("Error al cargar el historial:", err); if (!String(err.message).includes("expir")) usarCopia(); });
 }
 /* ==========================================
    GENERADOR PDF Y COMPARTIR
@@ -686,17 +708,23 @@ function obtenerDeviceId() {
   if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(16).slice(2)); localStorage.setItem("deviceId", id); }
   return id;
 }
+let ultimaSyncTs = 0;
 async function api(accion, datos = {}, post = false) {
   const url = obtenerUrlAPI();
   if (!url) throw new Error("Sistema no activado");
   const s = getSesion();
   const p = { accion, token: s ? s.token : "", ...datos };
-  const r = post
-    ? await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(p), redirect: "follow" })
-    : await fetch(url + "?" + new URLSearchParams(p), { redirect: "follow" });
-  const j = await r.json();
-  if (j.expirada) { cerrarSesion(); throw new Error("Tu sesión expiró, inicia de nuevo."); }
-  return j;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), post ? 60000 : 15000); // con señal mala no se queda colgada
+  try {
+    const r = post
+      ? await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(p), redirect: "follow", signal: ctrl.signal })
+      : await fetch(url + "?" + new URLSearchParams(p), { redirect: "follow", signal: ctrl.signal });
+    const j = await r.json();
+    if (j.expirada) { cerrarSesion(); throw new Error("Tu sesión expiró, inicia de nuevo."); }
+    ultimaSyncTs = Date.now(); idbGuardar("ultimaSync", ultimaSyncTs);
+    return j;
+  } finally { clearTimeout(t); }
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -708,6 +736,7 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 window.activar = async function () {
+  if (!navigator.onLine) { alert("Necesitas conexión a internet para activar el sistema."); return; }
   const codigo = (document.getElementById("codigo")?.value || "").trim();
   const cliente = (document.getElementById("empleado")?.value || "").trim();
   if (!codigo || !cliente) { alert("Ingresa el código y el nombre del cliente."); return; }
@@ -723,6 +752,7 @@ window.activar = async function () {
 };
 
 async function login() {
+  if (!navigator.onLine) { alert("Necesitas conexión a internet para iniciar sesión."); return; }
   const pin = (document.getElementById("pin")?.value || "").trim();
   const nombre = (document.getElementById("nombreLogin")?.value || "").trim();
   if (!nombre || !pin) { alert("Ingresa tu nombre y tu PIN."); return; }
@@ -745,6 +775,7 @@ async function login() {
 }
 
 function cerrarSesion() {
+  idbBorrar("historial:" + String((getSesion() || {}).empleado || "").trim().toLowerCase()); // la copia del historial es de ese usuario
   localStorage.removeItem("sesion");
   productos = []; factura = []; firmaVendedorGlobalEnMemoria = "";
   mostrarVista("loginVista");
@@ -761,9 +792,20 @@ function iniciarEntornoTrabajo() {
 
 async function cargarInventarioDesdeNube() {
   try {
+    if (!navigator.onLine) throw new Error("sin red");
     const j = await api("obtenerinventario");
-    if (j.success) { productos = j.productos; mostrarCatalogo(); }
-  } catch (e) { console.error(e); }
+    if (j.success) {
+      productos = j.productos; usandoCopiaLocal = false;
+      idbGuardar("catalogo", { productos, ts: Date.now() });
+      mostrarCatalogo(); actualizarBanner(); return;
+    }
+  } catch (e) {
+    if (String(e.message).includes("expir")) return; // api() ya llevó al login
+    console.warn("Sin conexión, se usa la copia local", e);
+  }
+  const copia = await idbLeer("catalogo");
+  if (copia && copia.productos) { productos = copia.productos; usandoCopiaLocal = true; mostrarCatalogo(); }
+  actualizarBanner();
 }
 
 async function actualizarNumeroRemisionDesdeNube() {
@@ -779,12 +821,14 @@ function verificarSiRequiereFirmaLogin() {
 }
 
 async function obtenerFirmaDesdeNube() {
+  const clave = "firma:" + String((getSesion() || {}).empleado || "").trim().toLowerCase();
   try {
+    if (!navigator.onLine) throw new Error("sin red");
     const j = await api("obtenerfirmacorporativa", { t: Date.now() });
     const f = (j.urlFirma || "").trim();
-    if (f) return f.startsWith("data:image") ? f : "data:image/png;base64," + f;
-  } catch (e) { console.error(e); }
-  return "";
+    if (f) { const completa = f.startsWith("data:image") ? f : "data:image/png;base64," + f; idbGuardar(clave, completa); return completa; }
+  } catch (e) { console.warn(e); }
+  return (await idbLeer(clave)) || "";
 }
 
 function configurarBuscador() {
@@ -836,6 +880,7 @@ async function guardarYCerrar(numeroPDF) {
 
 async function compartirPDF() {
   if (enviando) return;
+  if (!navigator.onLine) { alert("Sin conexión: no se puede enviar la remisión ahora. Conéctate e inténtalo de nuevo."); return; }
   if (!factura.length) { alert("No hay productos en la remisión."); return; }
   enviando = true;
   const numeroPDF = numeroRemision;
@@ -862,4 +907,68 @@ async function compartirPDF() {
     await guardarYCerrar(numeroPDF);
   } finally { enviando = false; }
 }
+
+
+/* ===== MODO SIN CONEXIÓN (etapa 1): copias locales en IndexedDB + indicador ===== */
+const IDB_NOMBRE = "remisiones_local", IDB_STORE = "kv";
+let usandoCopiaLocal = false;
+
+function idbAbrir() {
+  return new Promise((ok, err) => {
+    const r = indexedDB.open(IDB_NOMBRE, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(IDB_STORE);
+    r.onsuccess = () => ok(r.result);
+    r.onerror = () => err(r.error);
+  });
+}
+async function idbGuardar(clave, valor) {
+  try {
+    const db = await idbAbrir();
+    await new Promise((ok, err) => { const t = db.transaction(IDB_STORE, "readwrite"); t.objectStore(IDB_STORE).put(valor, clave); t.oncomplete = ok; t.onerror = () => err(t.error); });
+  } catch (e) { console.warn("IndexedDB no disponible", e); }
+}
+async function idbLeer(clave) {
+  try {
+    const db = await idbAbrir();
+    return await new Promise((ok, err) => { const q = db.transaction(IDB_STORE).objectStore(IDB_STORE).get(clave); q.onsuccess = () => ok(q.result); q.onerror = () => err(q.error); });
+  } catch (e) { return undefined; }
+}
+async function idbBorrar(clave) {
+  try {
+    const db = await idbAbrir();
+    await new Promise((ok, err) => { const t = db.transaction(IDB_STORE, "readwrite"); t.objectStore(IDB_STORE).delete(clave); t.oncomplete = ok; t.onerror = () => err(t.error); });
+  } catch (e) { /* nada */ }
+}
+
+function haceCuanto(ts) {
+  const m = Math.round((Date.now() - ts) / 60000);
+  if (m < 1) return "hace un momento";
+  if (m < 60) return "hace " + m + " min";
+  const h = Math.round(m / 60);
+  if (h < 48) return "hace " + h + " h";
+  return "hace " + Math.round(h / 24) + " días";
+}
+
+function actualizarBanner() {
+  let b = document.getElementById("estadoConexion");
+  if (!b) {
+    b = document.createElement("div");
+    b.id = "estadoConexion";
+    b.style.cssText = "position:fixed; top:0; left:0; right:0; z-index:9999; padding:6px 10px; font-size:12px; font-weight:bold; text-align:center; background:#e67e22; color:white; display:none;";
+    document.body.appendChild(b);
+  }
+  const sinRed = !navigator.onLine || usandoCopiaLocal;
+  b.style.display = sinRed ? "block" : "none";
+  document.body.style.paddingTop = sinRed ? "28px" : "";
+  if (sinRed) b.textContent = "Sin conexión" + (ultimaSyncTs ? " · última conexión " + haceCuanto(ultimaSyncTs) : "") + " · mostrando datos guardados";
+}
+
+window.addEventListener("online", () => { usandoCopiaLocal = false; actualizarBanner(); if (getSesion()) cargarInventarioDesdeNube(); });
+window.addEventListener("offline", actualizarBanner);
+window.addEventListener("DOMContentLoaded", async () => {
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); // pide que el celular no borre estos datos
+  ultimaSyncTs = (await idbLeer("ultimaSync")) || 0;
+  actualizarBanner();
+});
+
 
