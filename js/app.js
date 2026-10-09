@@ -156,6 +156,52 @@ function agregarProductoFactura(producto, cantidad = 1) {
     actualizarFactura();    
 }
 
+/* ===== MARCA DEL CLIENTE (nombre, NIT, teléfono, logo, color: vienen de la hoja Config del cliente) ===== */
+let MARCA = { empresa: "Remisiones", nit: "", telefono: "", ciudad: "", color: "#2563eb", logo: "", logoW: 1, logoH: 1 };
+function colorRgb(h) { const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(h || ""); return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [37, 99, 235]; }
+function oscurecer(h) { return "#" + colorRgb(h).map(v => Math.round(v * 0.8).toString(16).padStart(2, "0")).join(""); }
+
+async function prepararLogo(m) { // deja el logo como imagen incrustada (sirve sin internet) y mide su tamaño
+  if (!m.logo && m.logoUrl) {
+    try {
+      const resp = await fetch(m.logoUrl);
+      if (resp.ok) {
+        const b = await resp.blob();
+        if (b.size < 400000 && /^image\/(png|jpe?g)/.test(b.type)) m.logo = await new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(b); });
+      }
+    } catch (e) { console.warn("No se pudo cargar el logo", e); }
+  }
+  if (m.logo && !m.logoW) {
+    await new Promise(ok => { const im = new Image(); im.onload = () => { m.logoW = im.naturalWidth || 1; m.logoH = im.naturalHeight || 1; ok(); }; im.onerror = () => { m.logo = ""; ok(); }; im.src = m.logo; });
+  }
+  return m;
+}
+
+function aplicarMarca(m) {
+  MARCA = { ...MARCA, ...m };
+  const t = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v || ""; };
+  t("marcaNombre", MARCA.empresa); t("marcaNombre2", MARCA.empresa);
+  t("marcaNit", MARCA.nit ? "NIT: " + MARCA.nit : ""); t("marcaTel", MARCA.telefono ? "Tel: " + MARCA.telefono : ""); t("marcaCiudad", MARCA.ciudad);
+  const img = document.getElementById("marcaLogo"), nom = document.getElementById("marcaNombre");
+  if (img) { if (MARCA.logo) { img.src = MARCA.logo; img.style.display = "block"; if (nom) nom.style.display = "none"; } else { img.style.display = "none"; if (nom) nom.style.display = ""; } }
+  document.documentElement.style.setProperty("--color", MARCA.color);
+  document.documentElement.style.setProperty("--color-oscuro", oscurecer(MARCA.color));
+  const tc = document.querySelector('meta[name="theme-color"]'); if (tc) tc.content = MARCA.color;
+  document.title = MARCA.empresa;
+}
+
+async function recibirMarca(m) { // viene del servidor (login o actualización); se guarda para el modo sin internet
+  if (!m) return;
+  const previa = await idbLeer("marca");
+  if (previa && previa.logo && previa.logoUrl === m.logoUrl && !m.logo && m.logoUrl) { m.logo = previa.logo; m.logoW = previa.logoW; m.logoH = previa.logoH; }
+  await prepararLogo(m);
+  aplicarMarca(m);
+  idbGuardar("marca", m);
+}
+async function refrescarMarca() {
+  try { if (navigator.onLine) { const j = await api("obtenerconfig", { _silencioso: true }); if (j.success) await recibirMarca(j.marca); } } catch (e) { /* se queda con la guardada */ }
+}
+
 /* ===== CLIENTES FRECUENTES (guardados en este celular, funcionan sin internet) ===== */
 let clientesFrecuentes = {}, autoCliente = { tel: "", dir: "" };
 const normCliente = t => String(t || "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -284,7 +330,7 @@ function renderHistorial() {
     document.querySelectorAll("#filtrosHistorial button").forEach(b => {
         const activo = b.dataset.filtro === filtroEstado;
         b.textContent = b.dataset.texto + " (" + cuenta[b.dataset.filtro] + ")";
-        b.style.cssText = "flex:1; width:auto; padding:9px 4px; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; border:1px solid " + (activo ? "#2563eb" : "#cbd5e1") + "; background:" + (activo ? "#2563eb" : "white") + "; color:" + (activo ? "white" : "#475569") + ";";
+        b.style.cssText = "flex:1; width:auto; padding:9px 4px; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; border:1px solid " + (activo ? "var(--color)" : "#cbd5e1") + "; background:" + (activo ? "var(--color)" : "white") + "; color:" + (activo ? "white" : "#475569") + ";";
     });
     const aviso = document.getElementById("avisoFiltro");
     if (aviso) {
@@ -320,7 +366,7 @@ function renderHistorial() {
         html += `
             <div style="background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
-                    <strong style="color: #2563eb; font-size: 16px;">Remisión #${escHtml(rem.numRemision)}</strong>${rem.porSync ? `<span style="background:${rem.errorSync ? "#dc2626" : "#2563eb"}; color:white; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold; margin-left:6px;">${rem.errorSync ? "No aceptada" : "⏳ Por enviar"}</span>` : ""}
+                    <strong style="color: #2563eb; font-size: 16px;">Remisión #${escHtml(rem.numRemision)}</strong>${rem.porSync ? `<span style="background:${rem.errorSync ? "#dc2626" : "var(--color)"}; color:white; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold; margin-left:6px;">${rem.errorSync ? "No aceptada" : "⏳ Por enviar"}</span>` : ""}
                     <span style="font-size: 12px; color: #666;">${escHtml(rem.fecha)}</span>
                 </div>
                 <p style="margin: 4px 0; font-size: 14px;"><strong>Cliente:</strong> ${escHtml(rem.cliente)}</p>
@@ -448,13 +494,22 @@ function prepararDocumentoPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
     const W = 210, H = 297, M = 14, LIMITE = H - 20;
-    const azul = [41, 128, 185], gris = [100, 116, 139], oscuro = [30, 41, 59];
+    const azul = colorRgb(MARCA.color), gris = [100, 116, 139], oscuro = [30, 41, 59];
+    const dx = MARCA.logo ? 28 : 0;
 
     /* --- Encabezado --- */
     doc.setFillColor(...azul); doc.rect(0, 0, W, 36, "F");
-    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.text("FORTIZ", M, 17);
+    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.text(MARCA.empresa, M + dx, 17);
     doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-    doc.text("NIT: 12345678-9", M, 23); doc.text("Tel: 301 7005 428  |  Bogotá D.C.", M, 28);
+    doc.text(MARCA.nit ? "NIT: " + MARCA.nit : "", M + dx, 23);
+    doc.text([MARCA.telefono ? "Tel: " + MARCA.telefono : "", MARCA.ciudad].filter(Boolean).join("  |  "), M + dx, 28);
+    if (MARCA.logo) {
+        try { // el logo va dentro de un recuadro blanco para que se vea con cualquier color de marca
+            doc.setFillColor(255, 255, 255); doc.roundedRect(M, 5, 24, 26, 2, 2, "F");
+            const k = Math.min(21 / MARCA.logoW, 23 / MARCA.logoH), w = MARCA.logoW * k, hh = MARCA.logoH * k;
+            doc.addImage(MARCA.logo, /png/i.test(MARCA.logo.slice(0, 30)) ? "PNG" : "JPEG", M + (24 - w) / 2, 5 + (26 - hh) / 2, w, hh);
+        } catch (e) { console.warn("logo no dibujado", e); }
+    }
     doc.setFillColor(255, 255, 255); doc.roundedRect(W - M - 52, 8, 52, 21, 2, 2, "F");
     doc.setTextColor(...gris); doc.setFontSize(8); doc.text("REMISIÓN DE ENTREGA", W - M - 26, 14, { align: "center" });
     doc.setTextColor(...azul); doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("No. " + numeroFormateado, W - M - 26, 21.5, { align: "center" });
@@ -643,7 +698,7 @@ function descargarHistorialPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const W = 210, H = 297, M = 14, LIMITE = H - 18;
-    const azul = [41, 128, 185], gris = [100, 116, 139], oscuro = [30, 41, 59];
+    const azul = colorRgb(MARCA.color), gris = [100, 116, 139], oscuro = [30, 41, 59];
     const ses = getSesion() || {};
     const pad = n => String(n).padStart(4, "0");
     const lista = [...base].sort((a, b) => (b.ts || 0) - (a.ts || 0));
@@ -652,7 +707,7 @@ function descargarHistorialPDF() {
 
     // Encabezado
     doc.setFillColor(...azul); doc.rect(0, 0, W, 30, "F");
-    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.text("FORTIZ", M, 14);
+    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.text(MARCA.empresa, M, 14);
     doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.text("Historial de ventas - " + etiquetaMes(filtroMes) + (etiquetaFiltro ? " - " + etiquetaFiltro : ""), M, 22);
     doc.setFontSize(9);
     doc.text("Generado: " + new Date().toLocaleString("es-CO"), W - M, 14, { align: "right" });
@@ -834,6 +889,7 @@ async function login() {
       alert(j.message || "PIN incorrecto."); return;
     }
     localStorage.setItem("sesion", JSON.stringify({ token: j.token, rol: j.rol, empleado: j.empleado, serie: j.serie || "" }));
+    await recibirMarca(j.marca);
     if (j.serie && j.ultimoNumero) {
       const loc = (await idbLeer("contador:" + j.serie)) || 0;
       if (j.ultimoNumero > loc) await idbGuardar("contador:" + j.serie, j.ultimoNumero);
@@ -858,7 +914,7 @@ function iniciarEntornoTrabajo() {
   window.rolLogueado = s ? s.rol : "";
   mostrarVista("catalogoVista");
   cargarInventarioDesdeNube();
-  asegurarSerie(); contarCola(); sincronizar();
+  asegurarSerie(); contarCola(); sincronizar(); refrescarMarca();
 }
 
 async function cargarInventarioDesdeNube() {
@@ -1123,7 +1179,7 @@ function actualizarBanner() {
   const sinRed = !navigator.onLine || usandoCopiaLocal;
   const mostrar = sinRed || pendientesCola > 0;
   b.style.display = mostrar ? "block" : "none";
-  b.style.background = sinRed ? "#e67e22" : "#2563eb";
+  b.style.background = sinRed ? "#e67e22" : "var(--color)";
   document.body.style.paddingTop = mostrar ? "28px" : "";
   const br = document.getElementById("btnRespaldo"); if (br) br.style.display = pendientesCola > 0 ? "block" : "none";
   const partes = [];
@@ -1138,6 +1194,7 @@ window.addEventListener("offline", actualizarBanner);
 window.addEventListener("DOMContentLoaded", async () => {
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); // pide que el celular no borre estos datos
   ultimaSyncTs = (await idbLeer("ultimaSync")) || 0;
+  try { const mg = await idbLeer("marca"); if (mg) aplicarMarca(mg); else aplicarMarca({}); } catch (e) {}
   await contarCola();
   setInterval(() => { if (pendientesCola > 0) sincronizar(); }, 60000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && pendientesCola > 0) sincronizar(); });
