@@ -1,3 +1,4 @@
+:root { --color: #2563eb; --color-oscuro: #1d4ed8; }
 /* =================================================================
                     ESTILOS GENERALES Y CONTENEDOR
 =================================================================*/
@@ -73,7 +74,7 @@ select {
 }
 
 input:focus {
-    border-color: #2563eb;
+    border-color: var(--color);
     background: #ffffff;
 }
 
@@ -82,7 +83,7 @@ button {
     padding: 12px;
     margin-top: 10px;
     border-radius: 10px;
-    background: #2f6fa5;
+    background: var(--color);
     color: #fff;
     border: none;
     cursor: pointer;
@@ -100,7 +101,7 @@ button:hover {
 }
 
 .btn-primary {
-    background: #2563eb;
+    background: var(--color);
     color: white;
 }
 
@@ -217,7 +218,7 @@ button:hover {
 }
 
 .tabla-pro th {
-    background: #2f6fa5;
+    background: var(--color);
     color: #fff;
 }
 
@@ -297,7 +298,7 @@ button:hover {
 .datos-remision h3 {
     margin: 0;
     padding: 6px;
-    background: #2f6fa5;
+    background: var(--color);
     color: #fff;
     text-align: center;
     font-size: 14px;
@@ -339,7 +340,7 @@ button:hover {
 }
 
 .tablaCliente input:focus {
-    border-color: #2563eb;
+    border-color: var(--color);
     background: #ffffff;
 }
 
@@ -352,7 +353,7 @@ button:hover {
 }
 
 .tablaRemision th {
-    background: #2f6fa5;
+    background: var(--color);
     color: #fff;
     padding: 8px;
     font-size: 13px;
@@ -592,14 +593,14 @@ button:hover {
     width: 100%;
     padding: 12px 16px;
     font-size: 16px;
-    border: 2px solid #2f6fa5;
+    border: 2px solid var(--color);
     border-radius: 12px;
     outline: none;
     box-sizing: border-box;
 }
 
 #buscarProducto:focus{
-    border-color: #1f4f78;
+    border-color: var(--color-oscuro);
 }
 
 #resultados{
@@ -626,7 +627,7 @@ button:hover {
 
 .resultadoInfo p{
     margin: 4px 0 0;
-    color: #2f6fa5;
+    color: var(--color);
     font-weight: bold;
     font-size: 14px;
 }
@@ -635,7 +636,7 @@ button:hover {
     width: auto;
     padding: 8px 16px;
     border-radius: 8px;
-    background: #2f6fa5;
+    background: var(--color);
     color: white;
     cursor: pointer;
     font-size: 14px;
@@ -643,7 +644,7 @@ button:hover {
 }
 
 .btnAgregar:hover{
-    background: #245782;
+    background: var(--color-oscuro);
 }
 
 /* =================================================================
@@ -719,6 +720,10 @@ button:hover {
 .sugerencia-item:hover {
     background-color: #f1f1f1;
 }
+
+.marca-nombre { margin:0; font-size:26px; font-weight:700; color:var(--color); text-align:center; }
+
+
 
 
 
