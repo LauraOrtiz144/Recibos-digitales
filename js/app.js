@@ -273,14 +273,14 @@ function renderHistorial() {
                 <td style="padding: 4px 0;">${i.cantidad}</td>
                 <td style="padding: 4px 0; text-align: right;">$${formatoMoneda(i.subtotal)}</td>
             </tr>`).join("");
-        const puedeCobrar = pendiente && /^([A-Z]+-)?\d+$/.test(String(rem.numRemision));
+        const puedeCobrar = !rem.porSync && pendiente && /^([A-Z]+-)?\d+$/.test(String(rem.numRemision));
         const etiqueta = puedeCobrar
             ? `<button type="button" onclick="confirmarPago('${rem.numRemision}')" title="Marcar como pagada" style="width:auto; background:#e67e22; color:white; padding:6px 12px; border:none; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;">Pendiente</button>`
             : `<span style="background:${pendiente ? "#e67e22" : "#27ae60"}; color:white; padding:4px 10px; border-radius:4px; font-size:12px; font-weight:bold;">${escHtml(rem.estadoPago)}</span>`;
         html += `
             <div style="background: white; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px;">
-                    <strong style="color: #2563eb; font-size: 16px;">Remisión #${escHtml(rem.numRemision)}</strong>
+                    <strong style="color: #2563eb; font-size: 16px;">Remisión #${escHtml(rem.numRemision)}</strong>${rem.porSync ? `<span style="background:${rem.errorSync ? "#dc2626" : "#2563eb"}; color:white; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold; margin-left:6px;">${rem.errorSync ? "No aceptada" : "⏳ Por enviar"}</span>` : ""}
                     <span style="font-size: 12px; color: #666;">${escHtml(rem.fecha)}</span>
                 </div>
                 <p style="margin: 4px 0; font-size: 14px;"><strong>Cliente:</strong> ${escHtml(rem.cliente)}</p>
@@ -301,6 +301,8 @@ function renderHistorial() {
                     ${etiqueta}
                     <strong style="font-size: 15px; color: #1e293b;">Total: $${formatoMoneda(rem.totalRemision)}</strong>
                 </div>
+                ${rem.errorSync ? `<p style="margin:8px 0 0 0; font-size:12px; color:#dc2626;">⚠ ${escHtml(rem.errorSync)}</p>` : ""}
+                ${(rem.revisar && (getSesion() || {}).rol === "jefe") ? `<p style="margin:8px 0 0 0; font-size:12px; color:#b45309; background:#fef3c7; padding:6px 8px; border-radius:4px;">⚠ Revisar: ${escHtml(rem.revisar)}</p>` : ""}
                 ${(!pendiente && rem.fechaPago) ? `<p style="margin:8px 0 0 0; font-size:12px; color:#16a34a;">✔ Pagado el ${escHtml(rem.fechaPago)}${rem.cobradoPor ? " · registrado por " + escHtml(rem.cobradoPor) : ""}</p>` : ""}
             </div>`;
     });
@@ -340,13 +342,35 @@ function agruparHistorial(lista) {
                 ts: new Date(item.fecha).getTime() || 0,
                 fechaPago: item.fechaPago ? new Date(item.fechaPago).toLocaleString() : "",
                 cobradoPor: item.cobradoPor || "",
+                revisar: "",
                 items: [], totalRemision: 0
             };
         }
+        if (item.revisar) grupos[key].revisar = String(item.revisar);
         grupos[key].items.push({ producto: item.producto || "Producto", cantidad: Number(item.cantidad) || 0, subtotal: Number(item.subtotal) || 0 });
         grupos[key].totalRemision += Number(item.subtotal) || 0;
     });
     return Object.values(grupos);
+}
+
+async function colaComoGrupos(yaEnServidor) {
+    const cola = ((await idbLeer("cola")) || []).filter(esMia);
+    return cola.filter(r => !yaEnServidor.has(String(r.numRemision))).map(r => ({
+        numRemision: String(r.numRemision), uuid: r.uuid,
+        fecha: new Date(r.fecha).toLocaleString(), empleado: r.empleado || "", cliente: r.cliente || "Mostrador / Genérico",
+        estadoPago: r.estadoPago || "Pagado", mes: claveMes(r.fecha), ts: new Date(r.fecha).getTime() || 0,
+        fechaPago: "", cobradoPor: "", revisar: "", porSync: true, errorSync: r.error || "",
+        items: (r.items || []).map(i => ({ producto: i.nombre, cantidad: Number(i.cantidad) || 0, subtotal: (Number(i.cantidad) || 0) * (Number(i.precio) || 0) })),
+        totalRemision: (r.items || []).reduce((t, i) => t + (Number(i.cantidad) || 0) * (Number(i.precio) || 0), 0)
+    }));
+}
+
+async function armarHistorial(lista) {
+    const base = agruparHistorial(lista);
+    const ya = new Set(base.map(x => x.numRemision));
+    const locales = await colaComoGrupos(ya);
+    historialAgrupado = [...locales, ...base];
+    renderHistorial();
 }
 
 function verHistorial() {
@@ -355,7 +379,7 @@ function verHistorial() {
     const clave = "historial:" + String((getSesion() || {}).empleado || "").trim().toLowerCase();
     const usarCopia = async () => {
         const c = await idbLeer(clave);
-        if (c && c.lista) { historialAgrupado = agruparHistorial(c.lista); usandoCopiaLocal = true; renderHistorial(); }
+        await armarHistorial((c && c.lista) || []); usandoCopiaLocal = true;
         actualizarBanner();
     };
     if (!navigator.onLine) { usarCopia(); return; }
@@ -364,8 +388,7 @@ function verHistorial() {
             const lista = data.success && data.historial ? data.historial : [];
             idbGuardar(clave, { lista, ts: Date.now() });
             usandoCopiaLocal = false; actualizarBanner();
-            historialAgrupado = agruparHistorial(lista);
-            renderHistorial();
+            return armarHistorial(lista);
         })
         .catch(err => { console.error("Error al cargar el historial:", err); if (!String(err.message).includes("expir")) usarCopia(); });
 }
@@ -877,6 +900,19 @@ function nuevoUuid() { return crypto.randomUUID ? crypto.randomUUID() : "id-" + 
 
 async function contarCola() { pendientesCola = ((await idbLeer("cola")) || []).length; actualizarBanner(); }
 
+async function respaldarCola() {
+  const cola = (await idbLeer("cola")) || [];
+  if (!cola.length) { alert("No hay remisiones por enviar."); return; }
+  const blob = new Blob([JSON.stringify({ version: 1, creado: new Date().toISOString(), remisiones: cola })], { type: "application/json" });
+  const nombre = "respaldo-remisiones-" + new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-") + ".json";
+  try {
+    const f = new File([blob], nombre, { type: "application/json" });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: "Respaldo de remisiones" }); return; }
+  } catch (e) { if (e && e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
 async function encolarRemision(rem, n, serie) {
   await colaOp(async () => {
     const c = (await idbLeer("cola")) || [];
@@ -1048,6 +1084,7 @@ function actualizarBanner() {
   b.style.display = mostrar ? "block" : "none";
   b.style.background = sinRed ? "#e67e22" : "#2563eb";
   document.body.style.paddingTop = mostrar ? "28px" : "";
+  const br = document.getElementById("btnRespaldo"); if (br) br.style.display = pendientesCola > 0 ? "block" : "none";
   const partes = [];
   if (sinRed) partes.push("Sin conexión" + (ultimaSyncTs ? " · última conexión " + haceCuanto(ultimaSyncTs) : ""));
   if (pendientesCola > 0) partes.push(pendientesCola + " remisión(es) por enviar" + (sincronizando ? " · enviando…" : sinRed ? "" : " · toca para enviar") + (ultimoErrorSync ? " (" + ultimoErrorSync + ")" : ""));
@@ -1064,4 +1101,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   setInterval(() => { if (pendientesCola > 0) sincronizar(); }, 60000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && pendientesCola > 0) sincronizar(); });
 });
+
+
 
