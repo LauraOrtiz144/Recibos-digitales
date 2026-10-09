@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Sistema remisiones</title>
+  <title>Remisiones</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -57,7 +57,8 @@
     <!-- ENCABEZADO CON LOGO Y NOMBRE -->
     <header class="app-header">
       <div class="brand-logo-full">
-        <img src="icons/FORTIZ.jpeg" alt="Logo Empresa">
+        <img id="marcaLogo" alt="Logo" style="display:none">
+        <h1 id="marcaNombre" class="marca-nombre">Remisiones</h1>
       </div>
     </header>
 
@@ -90,10 +91,10 @@
 
       <div class="encabezado-remision">
         <div class="empresa">
-            <h2>FORTIZ</h2>
-            <p class="nit-empresa">NIT: 12345678-9</p>
-            <p>Tel: 301 7005 428</p>
-            <p>Bogotá D.C.</p>
+            <h2 id="marcaNombre2"></h2>
+            <p class="nit-empresa" id="marcaNit"></p>
+            <p id="marcaTel"></p>
+            <p id="marcaCiudad"></p>
         </div>
 
         <div class="datos-remision">
@@ -215,7 +216,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="js/app.js?v=7"></script>
+<script src="js/app.js?v=8"></script>
 
 <script>
   if ('serviceWorker' in navigator) {
@@ -228,4 +229,5 @@
 </script>
 </body>
 </html>
+
 
