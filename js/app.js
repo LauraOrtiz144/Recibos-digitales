@@ -771,6 +771,10 @@ async function login() {
       alert(j.message || "PIN incorrecto."); return;
     }
     localStorage.setItem("sesion", JSON.stringify({ token: j.token, rol: j.rol, empleado: j.empleado, serie: j.serie || "" }));
+    if (j.serie && j.ultimoNumero) {
+      const loc = (await idbLeer("contador:" + j.serie)) || 0;
+      if (j.ultimoNumero > loc) await idbGuardar("contador:" + j.serie, j.ultimoNumero);
+    }
     document.getElementById("pin").value = "";
     iniciarEntornoTrabajo();
   } catch (e) { alert("Error: " + e.message); }
@@ -826,9 +830,8 @@ async function asegurarSerie() {
   const s = getSesion();
   if (!s || s.serie || !navigator.onLine) return;
   try {
-    const j = await api("obtenerserie", { dispositivoId: obtenerDeviceId() });
-    if (j.success && j.serie) { s.serie = j.serie; localStorage.setItem("sesion", JSON.stringify(s)); }
-  } catch (e) { console.warn("No se pudo obtener la serie", e); }
+    // la serie llega en el login; si falta, hay que volver a iniciar sesión con internet
+  } catch (e) { console.warn(e); }
 }
 
 function verificarSiRequiereFirmaLogin() {
@@ -915,17 +918,17 @@ async function sincronizar() {
     for (let vuelta = 0; vuelta < 50; vuelta++) {
       const mias = ((await idbLeer("cola")) || []).filter(r => esMia(r) && !r.error);
       if (!mias.length) break;
-      const j = await api("sincronizarremisiones", { remisiones: mias.slice(0, 5), _silencioso: true }, true);
+      const j = await api("sincronizar", { remisiones: mias.slice(0, 5), _silencioso: true }, true);
       if (!j.success) { ultimoErrorSync = j.message || "error del servidor"; break; }
       const ok = new Set(), fallos = {};
-      (j.resultados || []).forEach(x => { if (x.ok) ok.add(x.uuid); else fallos[x.uuid] = x.message || "rechazada"; });
+      (j.aceptadas || []).forEach(u => ok.add(u));
       // solo se borra de la cola lo que el servidor confirmó (guardada o ya existente)
       await colaOp(async () => {
         const c = (await idbLeer("cola")) || [];
         await idbGuardar("cola", c.filter(r => !ok.has(r.uuid)).map(r => fallos[r.uuid] ? { ...r, error: fallos[r.uuid] } : r), true);
       });
       enviadas += ok.size;
-      if (!ok.size) { ultimoErrorSync = Object.values(fallos)[0] || "no se pudo enviar"; break; }
+      if (!ok.size) { ultimoErrorSync = "el servidor no aceptó las remisiones"; break; }
     }
   } catch (e) {
     ultimoErrorSync = String(e.message).includes("expir") ? "sesión vencida: inicia sesión con internet para enviarlas" : "señal inestable, se reintentará";
@@ -945,7 +948,7 @@ async function compartirPDF() {
   if (!factura.length) { alert("No hay productos en la remisión."); return; }
   const ses = getSesion() || {};
   if (!ses.serie || !numeroRemisionTexto) {
-    alert("Este celular aún no tiene su serie de remisiones. Conéctate a internet una vez e inténtalo de nuevo.");
+    alert("Este celular aún no tiene su serie de remisiones. Cierra sesión y vuelve a entrar con internet una vez.");
     asegurarSerie().then(actualizarNumeroRemisionDesdeNube);
     return;
   }
@@ -953,7 +956,7 @@ async function compartirPDF() {
   if (!cv || cv.toDataURL("image/png").length < 1500) { alert("Falta la firma del cliente."); return; }
   const v = id => (document.getElementById(id)?.value || "").trim();
   const rem = {
-    uuid: nuevoUuid(), numero: numeroRemisionTexto, fecha: new Date().toISOString(), empleado: ses.empleado,
+    uuid: nuevoUuid(), numRemision: numeroRemisionTexto, fecha: new Date().toISOString(), empleado: ses.empleado,
     cliente: v("clienteNombre") || "Mostrador / Genérico", estadoPago: v("selectEstadoPago") || "Pagado",
     firma: cv.toDataURL("image/png"),
     items: factura.map(i => ({ codigo_interno: i.codigo_interno, nombre: i.nombre, cantidad: i.cantidad, precio: i.precio }))
