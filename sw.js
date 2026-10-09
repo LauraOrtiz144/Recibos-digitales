@@ -1,4 +1,4 @@
-const CACHE = 'remisiones-v6';
+const CACHE = 'remisiones-v7';
 const LOCALES = ['./', './index.html', './css/style.css', './js/app.js', './manifest.json', './icons/icon-192.png', './icons/icon-512.png', './icons/FORTIZ.jpeg'];
 const EXTERNOS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
@@ -57,4 +57,5 @@ self.addEventListener('fetch', e => {
     );
   }
 });
+
 
