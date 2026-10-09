@@ -156,8 +156,48 @@ function agregarProductoFactura(producto, cantidad = 1) {
     actualizarFactura();    
 }
 
+/* ===== CLIENTES FRECUENTES (guardados en este celular, funcionan sin internet) ===== */
+let clientesFrecuentes = {}, autoCliente = { tel: "", dir: "" };
+const normCliente = t => String(t || "").trim().toLowerCase().replace(/\s+/g, " ");
+
+async function cargarClientesFrecuentes() {
+    clientesFrecuentes = (await idbLeer("clientes")) || {};
+    const dl = document.getElementById("clientesList");
+    if (dl) dl.innerHTML = Object.values(clientesFrecuentes).sort((a, b) => (b.usos - a.usos) || (b.ts - a.ts)).map(c => `<option value="${escHtml(c.nombre)}"></option>`).join("");
+    const inp = document.getElementById("clienteNombre");
+    if (inp && !inp._frecuentes) {
+        inp._frecuentes = true;
+        inp.addEventListener("input", autocompletarCliente);
+        inp.addEventListener("change", autocompletarCliente);
+    }
+}
+
+function autocompletarCliente() {
+    const c = clientesFrecuentes[normCliente(document.getElementById("clienteNombre").value)];
+    if (!c) return;
+    [["clienteTelefono", "tel", c.telefono], ["clienteDireccion", "dir", c.direccion]].forEach(([id, k, val]) => {
+        const el = document.getElementById(id);
+        // solo pisa el campo si está vacío o si lo había rellenado la app (nunca lo que escribiste tú)
+        if (el && val && (!el.value || el.value === autoCliente[k])) { el.value = val; autoCliente[k] = val; }
+    });
+}
+
+async function guardarClienteFrecuente(nombre, tel, dir) {
+    nombre = String(nombre || "").trim();
+    if (!nombre || /^mostrador/i.test(nombre)) return;
+    try {
+        const mapa = (await idbLeer("clientes")) || {}, k = normCliente(nombre), ant = mapa[k] || {};
+        mapa[k] = { nombre, telefono: tel || ant.telefono || "", direccion: dir || ant.direccion || "", usos: (ant.usos || 0) + 1, ts: Date.now() };
+        const ks = Object.keys(mapa);
+        if (ks.length > 500) ks.sort((a, b) => (mapa[a].usos - mapa[b].usos) || (mapa[a].ts - mapa[b].ts)).slice(0, ks.length - 500).forEach(x => delete mapa[x]);
+        await idbGuardar("clientes", mapa);
+        clientesFrecuentes = mapa; cargarClientesFrecuentes();
+    } catch (e) { console.warn("No se pudo guardar el cliente frecuente", e); }
+}
+
 async function irAFacturacion() {
     mostrarVista("facturacionVista");
+    cargarClientesFrecuentes();
     await actualizarNumeroRemisionDesdeNube();
     
     const fechaEl = document.getElementById("fechaActual");
@@ -1018,9 +1058,10 @@ async function compartirPDF() {
     if (!enviado) { alert("Envío cancelado: la remisión NO se guardó y el inventario no cambió."); return; }
 
     try { await encolarRemision(rem, n, ses.serie); }
-    catch (e) { alert("⚠ El PDF se envió, pero la remisión NO se pudo guardar en este celular (" + e.message + "). Anótala: No. " + rem.numero); return; }
+    catch (e) { alert("⚠ El PDF se envió, pero la remisión NO se pudo guardar en este celular (" + e.message + "). Anótala: No. " + rem.numRemision); return; }
 
     descontarStockLocal(rem.items);
+    guardarClienteFrecuente(v("clienteNombre"), v("clienteTelefono"), v("clienteDireccion"));
     factura = []; actualizarFactura();
     ["clienteNombre", "clienteTelefono", "clienteDireccion"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
     limpiarFirma();
@@ -1101,6 +1142,4 @@ window.addEventListener("DOMContentLoaded", async () => {
   setInterval(() => { if (pendientesCola > 0) sincronizar(); }, 60000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && pendientesCola > 0) sincronizar(); });
 });
-
-
 
